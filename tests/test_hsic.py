@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import pytest
 
-from src.covmetrics.dependance_metrics import *
+from src.covmetrics.dependance_metrics import HSIC
 
 def to_backend(array, backend, dtype="float"):
     """Helper to create numpy/torch/list arrays with correct types."""

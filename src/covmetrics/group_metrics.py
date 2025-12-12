@@ -1,93 +1,7 @@
 import torch 
-from typing import Literal, Optional
-from tqdm import tqdm
-from scipy import stats
+from typing import Literal
 import numpy as np
-from math import ceil
-from typing import Iterable, Union, List, Tuple, Dict
-import math
-import random
 from check import *
-from utils import *
-
-
-class WeightedCoverageGap:
-    def __init__(self, alpha=None):
-        """
-        Initialize the Weighted CovGap metric
-        alpha: Float in (0,1). The targetet miscoverage value. 
-        """
-        self.alpha=alpha
-
-    def evaluate(self, groups, cover, alpha=None):    
-        """
-        Compute the Weighted CovGap.
-
-        Parameters
-            groups: Groups memberships. Either a numpy array or a torch tensor with shape (n,) and values indicating the groups memberships.
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
-            alpha: Float in (0,1). The targetet miscoverage value. 
-        Returns
-            Float: FSC estimated
-
-        Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
-        """
-        if alpha is None:
-            alpha = self.alpha
-        
-        # --- checks ---
-        check_alpha(alpha)
-        check_emptyness(cover)
-        check_emptyness(groups)
-        check_cover(cover)
-        check_groups(groups)
-        check_consistency(cover, groups)
-
-        # --- Torch branch ---
-        if isinstance(cover, torch.Tensor) or isinstance(groups, torch.Tensor):
-            if not isinstance(cover, torch.Tensor):
-                cover = torch.tensor(cover, dtype=torch.float32)
-            if not isinstance(groups, torch.Tensor):
-                groups = torch.tensor(groups, dtype=torch.int64)
-
-            unique_groups = torch.unique(groups)
-            total_samples = cover.numel()
-            cover_gaps = []
-
-            for group in unique_groups:
-                group_indices = (groups == group)
-                group_size = group_indices.sum()
-                if group_size == 0:
-                    continue
-                group_cover = (cover[group_indices] >= 1).float().mean()
-                gap = torch.abs(group_cover - (1 - alpha))
-                weighted_gap = (group_size.float() / total_samples) * gap
-                cover_gaps.append(weighted_gap)
-
-            return torch.stack(cover_gaps).sum().item()
-
-        # --- Numpy branch ---
-        if isinstance(cover, list):
-            cover = np.array(cover, dtype=float)
-        if isinstance(groups, list):
-            groups = np.array(groups)
-
-        unique_groups = np.unique(groups)
-        total_samples = cover.size
-        cover_gaps = []
-
-        for group in unique_groups:
-            group_indices = (groups == group)
-            group_size = group_indices.sum()
-            if group_size == 0:
-                continue
-            group_cover = (cover[group_indices] >= 1).astype(float).mean()
-            gap = abs(group_cover - (1 - alpha))
-            weighted_gap = (group_size / total_samples) * gap
-            cover_gaps.append(weighted_gap)
-
-        return float(np.sum(cover_gaps))
 
 class CoverageGap:
     def __init__(self, alpha=None):
@@ -97,7 +11,7 @@ class CoverageGap:
         """
         self.alpha=alpha
         
-    def evaluate(self, groups, cover, alpha=None):    
+    def evaluate(self, groups, cover, alpha=None, weighted=False):    
         """
         Compute the CovGap.
 
@@ -105,6 +19,7 @@ class CoverageGap:
             groups: Groups memberships. Either a numpy array or a torch tensor with shape (n,) and values indicating the groups memberships.
             cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
             alpha: Float in (0,1). The targetet miscoverage value. 
+            alpha: (optional) Boolean, should compute the weighted or unweighted version of covgap.
         Returns
             Float: FSC estimated
 
@@ -133,6 +48,18 @@ class CoverageGap:
             unique_groups = torch.unique(groups)
             total_samples = cover.numel()
             cover_gaps = []
+
+            if weighted:
+                for group in unique_groups:
+                    group_indices = (groups == group)
+                    group_size = group_indices.sum()
+                    if group_size == 0:
+                        continue
+                    group_cover = (cover[group_indices] >= 1).float().mean()
+                    gap = torch.abs(group_cover - (1 - alpha))
+                    weighted_gap = (group_size.float() / total_samples) * gap
+                    cover_gaps.append(weighted_gap)
+                return torch.stack(cover_gaps).sum().item()
 
             for group in unique_groups:
                 group_indices = (groups == group)
@@ -154,6 +81,19 @@ class CoverageGap:
         unique_groups = np.unique(groups)
         total_samples = cover.size
         cover_gaps = []
+
+        if weighted:
+            for group in unique_groups:
+                group_indices = (groups == group)
+                group_size = group_indices.sum()
+                if group_size == 0:
+                    continue
+                group_cover = (cover[group_indices] >= 1).astype(float).mean()
+                gap = abs(group_cover - (1 - alpha))
+                weighted_gap = (group_size / total_samples) * gap
+                cover_gaps.append(weighted_gap)
+
+        return float(np.sum(cover_gaps))
 
         for group in unique_groups:
             group_indices = (groups == group)
@@ -296,7 +236,7 @@ class EOC:
         groups = self.grouping(y, number_max_groups)
         return FSC().evaluate(groups, cover)
     
-    def evaluate_CovGap(self, y, cover, alpha=None, number_max_groups=10):
+    def evaluate_CovGap(self, y, cover, alpha=None, number_max_groups=10, weighted=False):
         """
         Compute the EOC CovGap between the vector sizes and cover. 
 
@@ -313,9 +253,9 @@ class EOC:
         if alpha is None:
             alpha = self.alpha
         groups = self.grouping(y, number_max_groups)
-        return CoverageGap(alpha).evaluate(groups, cover)
+        return CoverageGap(alpha).evaluate(groups, cover, weighted=weighted)
     
-    def evaluate(self, y, cover, alpha=None, number_max_groups=10):
+    def evaluate(self, y, cover, alpha=None, number_max_groups=10, weighted=False):
         """
         Compute the EOC CovGap between the vector sizes and cover. 
 
@@ -331,7 +271,7 @@ class EOC:
         """
         if alpha is None:
             alpha = self.alpha
-        return self.evaluate_CovGap(y, cover, alpha, number_max_groups=number_max_groups)
+        return self.evaluate_CovGap(y, cover, alpha, number_max_groups=number_max_groups, weighted=weighted)
 
 class SSC:
     def __init__(self, alpha=None):
@@ -353,7 +293,7 @@ class SSC:
         """
         return self.estimator.evaluate_FSC(size, cover, number_max_groups=number_max_groups)
     
-    def evaluate_CovGap(self, size, cover, alpha=None, number_max_groups=10):
+    def evaluate_CovGap(self, size, cover, alpha=None, number_max_groups=10, weighted=False):
         """
         Compute the SSC between the vector sizes and cover. 
 
@@ -367,9 +307,9 @@ class SSC:
         Notes
             The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
-        return self.estimator.evaluate_CovGap(size, cover, alpha = alpha, number_max_groups=number_max_groups)
+        return self.estimator.evaluate_CovGap(size, cover, alpha = alpha, number_max_groups=number_max_groups, weighted=weighted)
     
-    def evaluate(self, size, cover, alpha=None, number_max_groups=10):
+    def evaluate(self, size, cover, alpha=None, number_max_groups=10, weighted=False):
         """
         Compute the SSC between the vector sizes and cover. 
 
@@ -383,7 +323,7 @@ class SSC:
         Notes
             The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
-        return self.estimator.evaluate(size, cover, alpha = alpha, number_max_groups=number_max_groups)
+        return self.estimator.evaluate(size, cover, alpha = alpha, number_max_groups=number_max_groups, weighted=weighted)
 
 class KMeansGrouping:
     def __init__(self):
