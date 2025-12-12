@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import warnings
 from src.covmetrics.check import *
+from src.covmetrics.networks import CheapLGBMClassifier
 
 
 def clip_max(x, val_max):
@@ -54,7 +55,7 @@ def make_L1_miscoverage(alpha):
     return L1_miscoverage
            
 class ERT:
-    def __init__(self, model_cls, **model_kwargs):    
+    def __init__(self, model_cls=CheapLGBMClassifier, **model_kwargs):    
         """
         Initialize the Excess Risk of the Target coverage metric. 
 
@@ -148,7 +149,7 @@ class ERT:
             for new_loss in self.added_losses:
                 self.tab_losses.append(new_loss)
        
-    def evaluate_all(self, x, cover, alpha, n_splits = None, val_splits=None, random_state=42, underconfidence=False, overconfidence=False, **fit_kwargs):
+    def evaluate_multiple_losses(self, x, cover, alpha, n_splits = None, val_splits=None, random_state=42, all_losses_to_evaluate=None, underconfidence=False, overconfidence=False, **fit_kwargs):
         """
         Returns the ERT values for all losses in self.tab_losses
             
@@ -157,6 +158,7 @@ class ERT:
         :param alpha: Float in (0,1). Target coverage level. 
         :param n_splits: (optional) Default=None, Number of splits to be done. If n_splits==0 then the model as to be already learned. Otherwise n_splits needs to be integer larger (or equal) than 2.
         :param random_state: Integer (optional) Default=42. Random seed to get reproducable results. 
+        
         :param underconfidence: Boolean (optional) Default=False. Should calculate the under-confidence of the loss
         :param overconfidence: Boolean (optional) Default=False. Should calculate the over-confidence of the loss
         :param fit_kwargs: (optional) arguments that the model needs to use to fit the classifier
@@ -166,14 +168,19 @@ class ERT:
         check_cover(cover)
         check_consistency(cover, x)
         check_alpha(alpha)
-        self.make_losses(alpha)
+        if all_losses_to_evaluate is not None:
+            for loss in all_losses_to_evaluate:
+                check_loss(loss)
+        else:
+            self.make_losses(alpha)
+            all_losses_to_evaluate = self.tab_losses
 
-        ERT_values = {"ERT_"+loss.__name__: [] for loss in self.tab_losses}
+        ERT_values = {"ERT_"+loss.__name__: [] for loss in all_losses_to_evaluate}
         if underconfidence:
-            for loss in self.tab_losses:
+            for loss in all_losses_to_evaluate:
                 ERT_values["ERT_underconfident_"+loss.__name__] = []
         if overconfidence:
-            for loss in self.tab_losses:
+            for loss in all_losses_to_evaluate:
                 ERT_values["ERT_overconfident_"+loss.__name__] = []
         
         if n_splits is not None:
@@ -209,19 +216,19 @@ class ERT:
 
                 pred_test = self.get_conditional_prediction(x_test)
 
-                for loss in self.tab_losses:
+                for loss in all_losses_to_evaluate:
                     ERT_loss = evaluate_with_predictions(pred_test, cover_test, alpha, loss=loss)
                     ERT_values["ERT_"+loss.__name__].append(ERT_loss)
 
                 if underconfidence:
                     underconfident_pred_test = clip_min(pred_test, 1-alpha)
-                    for loss in self.tab_losses:
+                    for loss in all_losses_to_evaluate:
                         ERT_loss = evaluate_with_predictions(underconfident_pred_test, cover_test, alpha, loss=loss)
                         ERT_values["ERT_underconfident_"+loss.__name__].append(ERT_loss)
 
                 if overconfidence:
                     overconfident_pred_test = clip_max(pred_test, 1-alpha)
-                    for loss in self.tab_losses:
+                    for loss in all_losses_to_evaluate:
                         ERT_loss = evaluate_with_predictions(overconfident_pred_test, cover_test, alpha, loss=loss)
                         ERT_values["ERT_overconfident_"+loss.__name__].append(ERT_loss)
                     
@@ -234,21 +241,20 @@ class ERT:
         
         pred = self.get_conditional_prediction(x)
         
-        for loss in self.tab_losses:
+        for loss in all_losses_to_evaluate:
             ERT_loss = evaluate_with_predictions(pred, cover, alpha, loss=loss)
-            ERT_values["ERT_"+loss.__name__].append(ERT_loss)
+            ERT_values["ERT_"+loss.__name__] = ERT_loss
 
         if underconfidence:
             underconfident_pred_test = clip_min(pred, 1-alpha)
-            for loss in self.tab_losses:
+            for loss in all_losses_to_evaluate:
                 ERT_loss = evaluate_with_predictions(underconfident_pred_test, cover, alpha, loss=loss)
-                ERT_values["ERT_underconfident_"+loss.__name__].append(ERT_loss)
-
+                ERT_values["ERT_underconfident_"+loss.__name__] = ERT_loss
         if overconfidence:
             overconfident_pred_test = clip_max(pred, 1-alpha)
-            for loss in self.tab_losses:
+            for loss in all_losses_to_evaluate:
                 ERT_loss = evaluate_with_predictions(overconfident_pred_test, cover, alpha, loss=loss)
-                ERT_values["ERT_overconfident_"+loss.__name__].append(ERT_loss)
+                ERT_values["ERT_overconfident_"+loss.__name__] = ERT_loss
 
         return ERT_values
   
@@ -327,4 +333,5 @@ def evaluate_with_predictions(pred, cover, alpha, loss=brier_score):
     """
     loss_pred = loss(pred, cover)
     loss_bayes = loss(1-alpha, cover)
-    return np.mean(np.array(loss_bayes)) - np.mean(np.array(loss_pred))
+    # return np.mean(np.array(loss_bayes)) - np.mean(np.array(loss_pred))
+    return np.mean(np.asarray(loss_bayes, dtype=float)) - np.mean(np.asarray(loss_pred, dtype=float))
