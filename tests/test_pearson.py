@@ -105,22 +105,6 @@ def test_invalid_cover_values_raise(backend):
     with pytest.raises((ValueError, AssertionError)):
         estimator.evaluate(sizes, cover_float_invalid)
 
-def test_backend_mismatch_numpy_cover_torch_sizes():
-    cover = np.array([0, 1, 0, 1], dtype=float)            # numpy
-    sizes = torch.tensor([1.0, 2.0, 3.0, 4.0])             # torch
-    estimator = PearsonCorrelation()
-    val = estimator.evaluate(sizes, cover)
-    assert isinstance(val, float)
-
-
-def test_backend_mismatch_torch_cover_numpy_sizes():
-    cover = torch.tensor([0.0, 1.0, 0.0, 1.0])
-    sizes = np.array([1.0, 2.0, 3.0, 4.0])
-    estimator = PearsonCorrelation()
-    val = estimator.evaluate(sizes, cover)
-    assert isinstance(val, float)
-
-
 # -------------------- RANDOMIZED TESTS --------------------
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
@@ -137,7 +121,7 @@ def test_random_binary_cover_matches_scipy(backend):
     val = estimator.evaluate(sizes, cover)
 
     expected, _ = stats.pearsonr(
-        np.array(sizes, dtype=float),
-        np.array(cover, dtype=float),
+        np.asarray(sizes, dtype=float),
+        np.asarray(cover, dtype=float),
     )
     assert np.isclose(val, expected, atol=1e-6)

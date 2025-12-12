@@ -12,6 +12,11 @@ def seed_everything(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False  
 
+def check_boolean(weighted):
+    """Ensure weighted is a Boolean"""
+    if not isinstance(weighted, bool):
+        raise ValueError("Input must be a Boolean")
+    return True
 
 def check_alpha(alpha):
     """Ensure alpha is a float in (0,1)."""
@@ -68,14 +73,10 @@ def check_n_splits(n_splits):
         raise ValueError("n_splits must be at least 2 for cross-validation.")
     return True
 
-
 def check_tabular(X):
     """
     Check that X is a valid tabular array/matrix.
     - Must be 2D
-    - No NaN values
-    - No ±Inf values
-    - All entries are finite numbers
     """
     if isinstance(X, pd.DataFrame):
         X = X.values
@@ -83,6 +84,21 @@ def check_tabular(X):
     if X.ndim != 2:
         raise ValueError(f"X must be 2D (tabular), got shape {X.shape}")
 
+    
+    if not isinstance(X, np.ndarray) or not  isinstance(X, torch.Tensor):
+        raise TypeError(f"X must be np.ndarray or torch.Tensor or dataframe, got {type(X)}")
+
+
+def check_tabular_strict(X):
+    """
+    Check that X is a valid tabular array/matrix.
+    - Must be 2D
+    - No NaN values
+    - No ±Inf values
+    - All entries are finite numbers
+    """
+    if X.ndim != 2:
+        raise ValueError(f"X must be 2D (tabular), got shape {X.shape}")
     # NumPy array
     if isinstance(X, np.ndarray):
         if not np.all(np.isfinite(X)):
@@ -186,4 +202,27 @@ def check_n_splits(n_splits):
         raise TypeError(f"n_splits must be an integer, got {type(n_splits).__name__}")
     if n_splits < 1:
         raise ValueError("n_splits must be at least 1 for cross-validation.")
+    return True
+
+def check_loss(loss_fn):
+    test_inputs = [
+        (np.array([0.1, 0.9]), np.array([0, 1])),
+        (torch.tensor([0.3, 0.7]), torch.tensor([1, 0]))
+    ]
+    
+    for p, q in test_inputs:
+        try:
+            result = loss_fn(p, q)
+            
+            if isinstance(result, (np.ndarray, torch.Tensor)):
+                if result.shape != np.shape(p):
+                    raise ValueError(f"Result shape is incorrect: {result.shape}, expected {np.shape(p)}")
+            elif isinstance(result, (float, int)):
+                pass
+            else:
+                raise TypeError(f"Unexpected return type: {type(result)}")
+        
+        except Exception as e:
+            raise ValueError(f"Loss function failed for p={p}, q={q}. Details: {e}")
+    
     return True

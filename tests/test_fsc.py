@@ -67,7 +67,7 @@ def test_length_mismatch_raises(backend):
     groups = to_backend([0, 0], backend, "int")  # shorter
     estimator = FSC()
     with pytest.raises((ValueError, IndexError)):
-        estimator.ERTevaluate(groups, cover)
+        estimator.evaluate(groups, cover)
 
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
@@ -118,20 +118,6 @@ def test_many_groups_small_sizes(backend):
     expected = 0.0
     assert np.isclose(val, expected)
 
-# -------------------- BACKEND MISMATCH TESTS --------------------
-
-def test_backend_mismatch_numpy_cover_torch_groups():
-    cover = np.array([1, 0, 1, 0], dtype=float)           # numpy
-    groups = torch.tensor([0, 0, 1, 1], dtype=torch.int64)  # torch
-    estimator = FSC()
-    estimator.evaluate(groups, cover)
-
-
-def test_backend_mismatch_torch_cover_numpy_groups():
-    cover = torch.tensor([1, 0, 1, 0], dtype=torch.float32)  # torch
-    groups = np.array([0, 0, 1, 1], dtype=int)               # numpy
-    estimator = FSC()
-    estimator.evaluate(groups, cover)
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
 def test_emptyness(backend):

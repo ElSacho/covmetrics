@@ -1,7 +1,7 @@
 import torch 
 from typing import Literal
 import numpy as np
-from check import *
+from src.covmetrics.check import *
 
 class CoverageGap:
     def __init__(self, alpha=None):
@@ -17,9 +17,9 @@ class CoverageGap:
 
         Parameters
             groups: Groups memberships. Either a numpy array or a torch tensor with shape (n,) and values indicating the groups memberships.
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (yin C(X)). Same type and length as sizes. 
             alpha: Float in (0,1). The targetet miscoverage value. 
-            alpha: (optional) Boolean, should compute the weighted or unweighted version of covgap.
+            alpha: (optional) Boolean Default=False, should compute the weighted or unweighted version of covgap.
         Returns
             Float: FSC estimated
 
@@ -32,6 +32,7 @@ class CoverageGap:
         
         # --- checks ---
         check_alpha(alpha)
+        check_boolean(weighted)
         check_emptyness(cover)
         check_emptyness(groups)
         check_cover(cover)
@@ -93,7 +94,7 @@ class CoverageGap:
                 weighted_gap = (group_size / total_samples) * gap
                 cover_gaps.append(weighted_gap)
 
-        return float(np.sum(cover_gaps))
+            return float(np.sum(cover_gaps))
 
         for group in unique_groups:
             group_indices = (groups == group)
@@ -116,12 +117,9 @@ class FSC:
 
         Parameters
             groups: Groups memberships. Either a numpy array or a torch tensor with shape (n,) and values indicating the groups memberships.
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y in C(X)). Same type and length as sizes. 
         Returns
             Float: FSC estimated
-
-        Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
         check_emptyness(cover)
         check_cover(cover)
@@ -225,13 +223,10 @@ class EOC:
 
         Parameters
             y: Input samples. Either a numpy array or a torch tensor with shape (n, d).
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y in C(X)). Same type and length as sizes. 
             number_max_groups: Max number of groups to estimate this metric
         Returns
             Float: FSC estimated
-
-        Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
         groups = self.grouping(y, number_max_groups)
         return FSC().evaluate(groups, cover)
@@ -242,13 +237,10 @@ class EOC:
 
         Parameters
             y: Input samples. Either a numpy array or a torch tensor with shape (n, d).
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (yin C(X)). Same length and type as sizes. 
             number_max_groups: Max number of groups to estimate this metric
         Returns
             Float: CovGap estimated
-
-        Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
         if alpha is None:
             alpha = self.alpha
@@ -261,13 +253,11 @@ class EOC:
 
         Parameters
             y: Input samples. Either a numpy array or a torch tensor with shape (n, d).
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (yin C(X)). Same type and length as sizes. 
             number_max_groups: Max number of groups to estimate this metric
         Returns
             Float: CovGap estimated
 
-        Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
         if alpha is None:
             alpha = self.alpha
@@ -283,13 +273,10 @@ class SSC:
 
         Parameters
             sizes: Input samples. Either a numpy array or a torch tensor with shape (n,).
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (yin C(X)). Same type and length as sizes. 
 
         Returns
             Float: FSC estimated
-
-        Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
         return self.estimator.evaluate_FSC(size, cover, number_max_groups=number_max_groups)
     
@@ -299,13 +286,10 @@ class SSC:
 
         Parameters
             sizes: Input samples. Either a numpy array or a torch tensor with shape (n,).
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (yin C(X)). Same type and length as sizes. 
 
         Returns
             Float: CovGap estimated
-
-        Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
         return self.estimator.evaluate_CovGap(size, cover, alpha = alpha, number_max_groups=number_max_groups, weighted=weighted)
     
@@ -315,13 +299,10 @@ class SSC:
 
         Parameters
             sizes: Input samples. Either a numpy array or a torch tensor with shape (n,).
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (yin C(X)). Same length and type as sizes. 
 
         Returns
             Float: CovGap estimated
-
-        Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
         return self.estimator.evaluate(size, cover, alpha = alpha, number_max_groups=number_max_groups, weighted=weighted)
 
@@ -339,22 +320,29 @@ class KMeansGrouping:
         self.labels = self.labels.to(device)
         return self
 
-    def __call__(self, X: torch.Tensor) -> torch.Tensor:
+    def __call__(self, X):
         """
         Assign rows of X to nearest centroid.
         X: (m, k) or (k,) or (m,) depending on k.
-        returns: (m,) long tensor of cluster indices
+        returns: (m,) long tensor or numpy array of cluster indices
         """
-        if not torch.is_tensor(X):
+        is_tensor_input = torch.is_tensor(X)
+        
+        if not is_tensor_input:
             X = torch.as_tensor(X, device=self.centroids.device)
+        
         # ensure 2D
         if X.dim() == 1:
             X = X.unsqueeze(0)
+        
         # compute squared distances: (m, n_groups)
-        # use torch.cdist if available for clarity
         dists = torch.cdist(X, self.centroids, p=2)  # (m, n_groups)
-        labels_new = torch.argmin(dists, dim=1)
-        return labels_new.to(torch.long)
+        labels_new = torch.argmin(dists, dim=1).to(torch.long)
+        
+        if is_tensor_input:
+            return labels_new
+        else:
+            return labels_new.cpu().numpy()
 
 def ClusteringGroupingFunction(x_train,
                               n_groups,

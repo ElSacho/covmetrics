@@ -54,21 +54,6 @@ def test_kmeans_grouping_triggers_for_many_unique_y(backend):
     # Cannot assert exact value because KMeans is approximate
 
 
-# -------------------- BACKEND MISMATCH TESTS --------------------
-
-def test_backend_mismatch_numpy_y_torch_cover():
-    y = np.array([0, 0, 1, 1], dtype=int)
-    cover = torch.tensor([1, 0, 1, 0], dtype=torch.float32)
-    estimator = EOC()
-    estimator.evaluate(y, cover, alpha=0.2)
-
-
-def test_backend_mismatch_torch_y_numpy_cover():
-    y = torch.tensor([0, 0, 1, 1], dtype=torch.int64)
-    cover = np.array([1, 0, 1, 0], dtype=float)
-    estimator = EOC()
-    estimator.evaluate(y, cover, alpha=0.2)
-
 # -------------------- EDGE CASES --------------------
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])

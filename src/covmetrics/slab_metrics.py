@@ -1,14 +1,8 @@
 import torch 
-from typing import Literal, Optional
-from tqdm import tqdm
-from scipy import stats
 import numpy as np
-from math import ceil
-from typing import Iterable, Union, List, Tuple, Dict
-import math
-import random
-from check import *
-from utils import *
+
+from src.covmetrics.check import *
+from src.covmetrics.utils import seed_everything
 
 
 # Original code from https://github.com/Shai128/oqr
@@ -117,7 +111,7 @@ class WSC:
 
         Parameters
             x: Input samples. Either a numpy array or a torch tensor with shape (n, d).
-            coverage: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same type and length as x. 
+            coverage: 1 and 0 vector containing the coverage values associated with each sample. 1 = (yin C(X)). Same type and length as x. 
             delta: Tolerance parameter that controls the size of the slab. 
             M: Number of random directions drawn on the unit sphere for the search procedure.
 
@@ -129,7 +123,6 @@ class WSC:
                 b: Auxiliary scalar returned by the backend solver.
 
         Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
             It draws M random unit vectors and evaluates the coverage for each. The minimum value is returned.
         """
         use_torch = isinstance(x, torch.Tensor) or isinstance(coverage, torch.Tensor)
@@ -173,7 +166,7 @@ class WSC:
 
         Parameters
             x: Input samples. Either a numpy array or a torch tensor with shape (n, d).
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same type and length as x. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (yin C(X)). Same type and length as x. 
             delta: Tolerance parameter that controls the size of the slab. 
             M: Number of random directions drawn on the unit sphere for the search procedure.
 
@@ -189,7 +182,7 @@ class WSC:
             delta = self.delta
         check_delta(delta)
         check_cover(cover)
-        check_tabular(x)
+        check_tabular_strict(x)
         check_consistency(cover, x)
 
         wsc_value, _, _, _ = self.wsc(

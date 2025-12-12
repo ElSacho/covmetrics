@@ -30,6 +30,14 @@ def test_single_group_perfect_cover(backend):
     expected = abs(1.0 - (1 - 0.1))  # |1 - 0.9| = 0.1
     assert np.isclose(val, expected)
 
+@pytest.mark.parametrize("backend", ["numpy", "torch"])
+def test_weighted_not_boolean_raises(backend):
+    cover = to_backend([1, 1, 1, 1], backend, "float")
+    groups = to_backend([0, 0, 0, 0], backend, "int")
+    estimator = CoverageGap(alpha=0.1)
+    with pytest.raises(ValueError): 
+        estimator.evaluate(groups, cover, weighted=2)
+
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
 def test_single_group_no_cover(backend):
@@ -173,8 +181,18 @@ def test_large_group_and_small_groups(backend):
     cover = to_backend([1]*50 + [0,1,0], backend, "float")
     groups = to_backend([0]*50 + [1,2,3], backend, "int")
     estimator = CoverageGap(alpha=0.1)
-    expected = (50/53)*0.1 + (1/53)*0.9 + (1/53)*0.1 + (1/53)*0.9
+    expected = (50/50-0.9)*0.25 + (0.9-0/1)*0.25 + (1/1-0.9)*0.25 + (0.9-0/1)*0.25
     val = estimator.evaluate(groups, cover)
+    assert np.isclose(val, expected)
+
+
+@pytest.mark.parametrize("backend", ["numpy", "torch"])
+def test_large_group_and_small_groups_weithed(backend):
+    cover = to_backend([1]*50 + [0,1,0], backend, "float")
+    groups = to_backend([0]*50 + [1,2,3], backend, "int")
+    estimator = CoverageGap(alpha=0.1)
+    expected = (50/50-0.9)*50/53 + (0.9-0/1)*1/53 + (1/1-0.9)*1/53 + (0.9-0/1)*1/53
+    val = estimator.evaluate(groups, cover, weighted=True)
     assert np.isclose(val, expected)
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])

@@ -1,7 +1,7 @@
 import torch 
 from scipy import stats
 import numpy as np
-from check import *
+from src.covmetrics.check import *
 
 
 class PearsonCorrelation:
@@ -14,13 +14,10 @@ class PearsonCorrelation:
 
         Parameters
             sizes: Input samples. Either a numpy array or a torch tensor with shape (n,).
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (yin C(X)). Same type and length as sizes. 
         
         Returns
             Float: PearsonCorrelation estimated
-
-        Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
         # Torch backend
         check_emptyness(cover)
@@ -110,14 +107,11 @@ class HSIC:
 
         Parameters
             sizes: Input samples. Either a numpy array or a torch tensor with shape (n,).
-            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (y\in C(X)). Same length as sizes. 
+            cover: 1 and 0 vector containing the coverage values associated with each sample. 1 = (yin C(X)). Same type and length as sizes. 
             max_number_samples: Maximum number of observations used in the computation. If the input is larger, a random subset of this size is selected to limit the computational cost.
 
         Returns
             Float: PearsonCorrelation estimated
-
-        Notes
-            The function detects whether numpy or torch is in use and dispatches to the matching backend.
         """
         check_emptyness(cover)
         check_emptyness(sizes)

@@ -12,7 +12,7 @@ keywords = ['Metrics', 'Conformal', 'Conditional', 'Diagnostic']
 authors = [
     { name = "Sacha Braun", email = "surname.lastname@inria.fr" },
 ]
-license = { file = "LICENSE" }
+license = { file = "LICENCE" }
 
 classifiers = [
     "Development Status :: 4 - Beta",

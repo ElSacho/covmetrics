@@ -95,17 +95,6 @@ def test_length_mismatch_raises(backend):
     with pytest.raises(ValueError):
         estimator = WSC(delta=0.1)
         estimator.evaluate(X, cover, M=50)
-
-@pytest.mark.parametrize("backend", ["numpy", "torch"])
-def test_type_mismatch_raises(backend):
-    X_np, cover_np = make_data(backend="numpy")
-    X_torch, cover_torch = make_data(backend="torch")
-    if backend == "numpy":
-        estimator = WSC(delta=0.1)
-        estimator.evaluate(X_np, cover_torch, M=50)
-    else:
-        estimator = WSC(delta=0.1)
-        estimator.evaluate(X_torch, cover_np, M=50)
             
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])

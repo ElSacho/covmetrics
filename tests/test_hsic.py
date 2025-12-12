@@ -111,22 +111,6 @@ def test_invalid_cover_values_raise(backend):
         estimator.evaluate(sizes, cover_float_bad)
 
 
-def test_backend_mismatch_numpy_cover_torch_sizes():
-    cover = np.array([0, 1, 0, 1], dtype=float)            # numpy
-    sizes = torch.tensor([1.0, 2.0, 3.0, 4.0])             # torch
-    estimator = HSIC()
-    val = estimator.evaluate(sizes, cover)
-    assert isinstance(val, float)
-
-
-def test_backend_mismatch_torch_cover_numpy_sizes():
-    cover = torch.tensor([0.0, 1.0, 0.0, 1.0])
-    sizes = np.array([1.0, 2.0, 3.0, 4.0])
-    estimator = HSIC()
-    val = estimator.evaluate(sizes, cover)
-    assert isinstance(val, float)
-
-
 # -------------------- RANDOMIZED TEST --------------------
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
