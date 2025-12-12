@@ -60,6 +60,21 @@ def check_tabular_1D(x):
     else:
         raise TypeError(f"x must be np.ndarray or torch.Tensor, got {type(x)}")
 
+def check_n_splits(n_splits):
+    """
+    Checks if n_splits is a valid integer greater than 0.
+    
+    Raises:
+        TypeError: If n_splits is not an integer.
+        ValueError: If n_splits is less than 1.
+    """
+    if not isinstance(n_splits, int):
+        raise TypeError(f"n_splits must be an integer, got {type(n_splits).__name__}")
+    if n_splits < 2:
+        raise ValueError("n_splits must be at least 2 for cross-validation.")
+    return True
+
+
 def check_tabular(X):
     """
     Check that X is a valid tabular array/matrix.

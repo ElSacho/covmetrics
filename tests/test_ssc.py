@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import pytest
-from conditional_coverage_metrics import *
+from src.covmetrics.group_metrics import *
 
 def to_backend(array, backend, dtype="float"):
     """Helper to create numpy or torch arrays with the right type."""
@@ -24,7 +24,7 @@ def test_single_group_perfect_cover(backend):
     y = to_backend([0, 0, 0, 0], backend, "int")
     cover = to_backend([1, 1, 1, 1], backend, "float")
     estimator = SSC()
-    val = estimator.evaluate(cover, y, alpha=0.1)
+    val = estimator.evaluate(y, cover, alpha=0.1)
     expected = 0.1  # |1 - (1-alpha)| = alpha
     assert np.isclose(val, expected)
 
@@ -34,7 +34,7 @@ def test_multiple_groups_small_unique_y(backend):
     y = to_backend([0, 0, 1, 1], backend, "int")
     cover = to_backend([1, 0, 1, 0], backend, "float")
     estimator = SSC()
-    val = estimator.evaluate(cover, y, alpha=0.2)
+    val = estimator.evaluate(y, cover, alpha=0.2)
     expected = np.abs(0.5 - 0.8) / 2 + np.abs(0.5 - 0.8) /2
     assert isinstance(val, float)
     assert np.isclose(val, expected)
@@ -48,7 +48,7 @@ def test_kmeans_grouping_triggers_for_many_unique_y(backend):
         y = torch.tensor(y, dtype=torch.float32)
         cover = torch.tensor(cover, dtype=torch.float32)
     estimator = SSC()
-    val = estimator.evaluate(cover, y, alpha=0.1, number_max_groups=5)
+    val = estimator.evaluate(y, cover, alpha=0.1, number_max_groups=5)
     assert isinstance(val, float)  # returns a float
     # Cannot assert exact value because KMeans is approximate
 
@@ -59,14 +59,14 @@ def test_backend_mismatch_numpy_y_torch_cover():
     y = np.array([0, 0, 1, 1], dtype=int)
     cover = torch.tensor([1, 0, 1, 0], dtype=torch.float32)
     estimator = SSC()
-    estimator.evaluate(cover, y, alpha=0.2)
+    estimator.evaluate(y, cover, alpha=0.2)
 
 
 def test_backend_mismatch_torch_y_numpy_cover():
     y = torch.tensor([0, 0, 1, 1], dtype=torch.int64)
     cover = np.array([1, 0, 1, 0], dtype=float)
     estimator = SSC()
-    estimator.evaluate(cover, y, alpha=0.2)
+    estimator.evaluate(y, cover, alpha=0.2)
 
 # -------------------- EDGE CASES --------------------
 
@@ -76,7 +76,7 @@ def test_empty_arrays_raise(backend):
     cover = to_backend([], backend, "float")
     estimator = SSC()
     with pytest.raises((ValueError, TypeError)):
-        estimator.evaluate(cover, y, alpha=0.2)
+        estimator.evaluate(y, cover, alpha=0.2)
 
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
@@ -84,7 +84,7 @@ def test_groups_with_noncontiguous_labels(backend):
     y = to_backend([10, 10, 42, 42], backend, "int")
     cover = to_backend([1, 1, 0, 0], backend, "float")
     estimator = SSC()
-    val = estimator.evaluate(cover, y, alpha=0.2)
+    val = estimator.evaluate(y, cover, alpha=0.2)
     expected = np.abs(1-0.8)/2+np.abs(0-0.8)/2
     assert np.isclose(val, expected)
 
@@ -98,7 +98,7 @@ def test_torch_float_y_small_unique(backend):
         y = np.array([0.1, 0.1, 0.5, 0.5], dtype=float)
         cover = np.array([1, 0, 1, 0], dtype=float)
     estimator = SSC()
-    val = estimator.evaluate(cover, y, alpha=0.3)
+    val = estimator.evaluate(y, cover, alpha=0.3)
     assert isinstance(val, float)
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
@@ -117,7 +117,7 @@ def test_many_unique_values_trigger_kmeans(backend):
         cover = torch.tensor(cover, dtype=torch.float32)
 
     estimator = SSC()
-    val = estimator.evaluate(cover, y, alpha=0.1, number_max_groups=2)
+    val = estimator.evaluate(y, cover, alpha=0.1, number_max_groups=2)
 
     # Expected behavior: min cover of groups after KMeans should be 0
     assert isinstance(val, float)

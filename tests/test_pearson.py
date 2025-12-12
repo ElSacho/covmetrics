@@ -2,7 +2,8 @@ import numpy as np
 import torch
 import pytest
 from scipy import stats
-from conditional_coverage_metrics import * 
+
+from src.covmetrics.dependance_metrics import * 
 
 
 def to_backend(array, backend, dtype="float"):
@@ -22,7 +23,7 @@ def test_perfect_positive_correlation(backend):
     cover = to_backend([0, 0, 1, 1, 1], backend)     # binary
     sizes = to_backend([1, 2, 3, 4, 5], backend)
     estimator = PearsonCorrelation()
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
     # higher sizes tend to match cover=1 → positive correlation
     assert val > 0.5
 
@@ -32,7 +33,7 @@ def test_perfect_negative_correlation(backend):
     cover = to_backend([1, 1, 0, 0, 0], backend)     # binary
     sizes = to_backend([1, 2, 3, 4, 5], backend)
     estimator = PearsonCorrelation()
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
     # higher sizes tend to match cover=0 → negative correlation
     assert val < -0.5
 
@@ -42,7 +43,7 @@ def test_zero_correlation_like(backend):
     cover = to_backend([0, 1, 0, 1], backend)
     sizes = to_backend([10, 10, 5, 5], backend)  # no variation linked to cover
     estimator = PearsonCorrelation()
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
     assert np.isclose(val, 0.0, atol=1e-6)
 
 
@@ -51,7 +52,7 @@ def test_return_type_is_float(backend):
     cover = to_backend([0, 1, 0, 1], backend)
     sizes = to_backend([1, 2, 3, 4], backend)
     estimator = PearsonCorrelation()
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
     assert isinstance(val, float)
 
 
@@ -61,11 +62,11 @@ def test_numpy_and_torch_equivalence():
     cover = np.array([0, 0, 1, 1, 1], dtype=float)
     sizes = np.array([5, 4, 3, 2, 1], dtype=float)
     estimator = PearsonCorrelation()
-    val_numpy = estimator.evaluate(cover, sizes)
+    val_numpy = estimator.evaluate(sizes, cover)
 
     cover_t = torch.tensor(cover, dtype=torch.float32)
     sizes_t = torch.tensor(sizes, dtype=torch.float32)
-    val_torch = estimator.evaluate(cover_t, sizes_t)
+    val_torch = estimator.evaluate(sizes_t, cover_t)
 
     assert np.isclose(val_numpy, val_torch, atol=1e-6)
 
@@ -78,7 +79,7 @@ def test_length_mismatch_raises(backend):
     sizes = to_backend([1, 2], backend)  # shorter
     estimator = PearsonCorrelation()
     with pytest.raises((ValueError, IndexError)):
-        estimator.evaluate(cover, sizes)
+        estimator.evaluate(sizes, cover)
 
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
@@ -87,7 +88,7 @@ def test_empty_inputs_raise(backend):
     sizes = to_backend([], backend)
     estimator = PearsonCorrelation()
     with pytest.raises((ValueError, AssertionError)):
-        estimator.evaluate(cover, sizes)
+        estimator.evaluate(sizes, cover)
 
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
@@ -98,17 +99,17 @@ def test_invalid_cover_values_raise(backend):
     cover_invalid = to_backend([0, 2, 1, -1], backend)
     sizes = to_backend([1, 2, 3, 4], backend)
     with pytest.raises((ValueError, AssertionError)):
-        estimator.evaluate(cover_invalid, sizes)
+        estimator.evaluate(sizes, cover_invalid)
 
     cover_float_invalid = to_backend([0.0, 0.5, 1.0, 0.2], backend)
     with pytest.raises((ValueError, AssertionError)):
-        estimator.evaluate(cover_float_invalid, sizes)
+        estimator.evaluate(sizes, cover_float_invalid)
 
 def test_backend_mismatch_numpy_cover_torch_sizes():
     cover = np.array([0, 1, 0, 1], dtype=float)            # numpy
     sizes = torch.tensor([1.0, 2.0, 3.0, 4.0])             # torch
     estimator = PearsonCorrelation()
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
     assert isinstance(val, float)
 
 
@@ -116,7 +117,7 @@ def test_backend_mismatch_torch_cover_numpy_sizes():
     cover = torch.tensor([0.0, 1.0, 0.0, 1.0])
     sizes = np.array([1.0, 2.0, 3.0, 4.0])
     estimator = PearsonCorrelation()
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
     assert isinstance(val, float)
 
 
@@ -133,10 +134,10 @@ def test_random_binary_cover_matches_scipy(backend):
         sizes = torch.tensor(sizes, dtype=torch.float32)
 
     estimator = PearsonCorrelation()
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
 
     expected, _ = stats.pearsonr(
+        np.array(sizes, dtype=float),
         np.array(cover, dtype=float),
-        np.array(sizes, dtype=float)
     )
     assert np.isclose(val, expected, atol=1e-6)

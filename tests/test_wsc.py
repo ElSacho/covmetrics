@@ -1,7 +1,8 @@
 import numpy as np
 import torch
 import pytest
-from conditional_coverage_metrics import WSC
+
+from src.covmetrics.slab_metrics import WSC
 
 def to_backend(array, backend, dtype="float"):
     """Helper to create numpy or torch arrays with the right type."""

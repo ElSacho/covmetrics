@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import pytest
 
-from conditional_coverage_metrics import FSC
+from src.covmetrics.group_metrics import FSC
 
 def to_backend(array, backend, dtype="float"):
     """Helper to create numpy or torch arrays with the right type."""
@@ -25,7 +25,7 @@ def test_single_group_perfect_cover(backend):
     cover = to_backend([1, 1, 1, 1], backend, "float")
     groups = to_backend([0, 0, 0, 0], backend, "int")
     estimator = FSC()
-    val = estimator.evaluate(cover, groups)
+    val = estimator.evaluate(groups, cover)
     expected = 1.0
     assert np.isclose(val, expected)
 
@@ -35,7 +35,7 @@ def test_single_group_no_cover(backend):
     cover = to_backend([0, 0, 0, 0], backend, "float")
     groups = to_backend([0, 0, 0, 0], backend, "int")
     estimator = FSC()
-    val = estimator.evaluate(cover, groups)
+    val = estimator.evaluate(groups, cover)
     expected = 0.0
     assert np.isclose(val, expected)
 
@@ -45,7 +45,7 @@ def test_two_groups_mixed_cover(backend):
     cover = to_backend([1, 1, 1, 0, 0, 0], backend, "float")
     groups = to_backend([0, 0, 0, 1, 1, 1], backend, "int")
     estimator = FSC()
-    val = estimator.evaluate(cover, groups)
+    val = estimator.evaluate(groups, cover)
     expected = 0.0
     assert np.isclose(val, expected)
 
@@ -55,7 +55,7 @@ def test_return_type_is_float(backend):
     cover = to_backend([1, 0, 1, 1], backend, "float")
     groups = to_backend([0, 0, 1, 1], backend, "int")
     estimator = FSC()
-    val = estimator.evaluate(cover, groups)
+    val = estimator.evaluate(groups, cover)
     assert isinstance(val, float)
 
 
@@ -67,7 +67,7 @@ def test_length_mismatch_raises(backend):
     groups = to_backend([0, 0], backend, "int")  # shorter
     estimator = FSC()
     with pytest.raises((ValueError, IndexError)):
-        estimator.evaluate(cover, groups)
+        estimator.ERTevaluate(groups, cover)
 
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
@@ -78,13 +78,13 @@ def test_non_integer_group_labels_raises(backend):
         groups_str = np.array(["a", "a", "b", "b"])
         groups_float = np.array([0.1, 0.1, 1.5, 1.5])
         with pytest.raises((TypeError, ValueError)):
-            estimator.evaluate(cover, groups_str)
+            estimator.evaluate(groups_str, cover)
         with pytest.raises((TypeError, ValueError)):
-            estimator.evaluate(cover, groups_float)
+            estimator.evaluate(groups_float, cover)
     else:
         groups_float = torch.tensor([0.1, 0.1, 1.5, 1.5], dtype=torch.float32)
         with pytest.raises((TypeError, ValueError)):
-            estimator.evaluate(cover, groups_float)
+            estimator.evaluate(groups_float, cover)
 
 
 # -------------------- COMPLEX GROUP STRUCTURES --------------------
@@ -94,7 +94,7 @@ def test_multiple_groups_three_classes(backend):
     cover = to_backend([1, 0, 1, 0, 1, 0], backend, "float")
     groups = to_backend([0, 0, 1, 1, 2, 2], backend, "int")
     estimator = FSC()
-    val = estimator.evaluate(cover, groups)
+    val = estimator.evaluate(groups, cover)
     expected = 0.5
     assert np.isclose(val, expected)
 
@@ -104,7 +104,7 @@ def test_groups_with_noncontiguous_labels(backend):
     cover = to_backend([1, 1, 0, 0], backend, "float")
     groups = to_backend([10, 10, 42, 42], backend, "int")
     estimator = FSC()
-    val = estimator.evaluate(cover, groups)
+    val = estimator.evaluate(groups, cover)
     expected = min(1.0, 0.0)
     assert np.isclose(val, expected)
 
@@ -114,7 +114,7 @@ def test_many_groups_small_sizes(backend):
     cover = to_backend([1, 0, 1, 0], backend, "float")
     groups = to_backend([0, 1, 2, 3], backend, "int")
     estimator = FSC()
-    val = estimator.evaluate(cover, groups)
+    val = estimator.evaluate(groups, cover)
     expected = 0.0
     assert np.isclose(val, expected)
 
@@ -124,14 +124,14 @@ def test_backend_mismatch_numpy_cover_torch_groups():
     cover = np.array([1, 0, 1, 0], dtype=float)           # numpy
     groups = torch.tensor([0, 0, 1, 1], dtype=torch.int64)  # torch
     estimator = FSC()
-    estimator.evaluate(cover, groups)
+    estimator.evaluate(groups, cover)
 
 
 def test_backend_mismatch_torch_cover_numpy_groups():
     cover = torch.tensor([1, 0, 1, 0], dtype=torch.float32)  # torch
     groups = np.array([0, 0, 1, 1], dtype=int)               # numpy
     estimator = FSC()
-    estimator.evaluate(cover, groups)
+    estimator.evaluate(groups, cover)
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
 def test_emptyness(backend):

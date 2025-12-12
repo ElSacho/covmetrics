@@ -3,21 +3,8 @@ import torch
 import numpy as np
 import pandas as pd
 import warnings
-
-def check_n_splits(n_splits):
-    """
-    Checks if n_splits is a valid integer greater than 0.
-    
-    Raises:
-        TypeError: If n_splits is not an integer.
-        ValueError: If n_splits is less than 1.
-    """
-    if not isinstance(n_splits, int):
-        raise TypeError(f"n_splits must be an integer, got {type(n_splits).__name__}")
-    if n_splits < 1:
-        raise ValueError("n_splits must be at least 1 for cross-validation.")
-    return True
-
+from check import *
+from utils import *
 
 def clip_max(x, val_max):
     if isinstance(x, torch.Tensor):
@@ -68,8 +55,10 @@ def make_L1_miscoverage(alpha):
     return L1_miscoverage
            
 class ERT:
-    def __init__(self, model_cls, **model_kwargs):
+    def __init__(self, model_cls, **model_kwargs):    
         """
+        Initialize the Excess Risk of the Target coverage metric. 
+
         model_cls: the class of the model (e.g., RandomForestClassifier, CatBoostClassifier)
         model_kwargs: keyword arguments to initialize the model
         """
@@ -85,6 +74,15 @@ class ERT:
         return self.model
     
     def fit(self, x_train, cover_train, x_stop=None, cover_stop=None, **fit_kwargs):
+        """
+        Fit the classifier
+        
+        :param x_train: data used to train the model (either numpy, torch or dataframe) of shape (n, d)
+        :param cover_train: cover vector with 1 and 0 values, 1 = (Y\in C(X)) (either numpy, torch or dataframe) of shape (n,)
+        :param x_stop: (optional) additional data used to train the model (either numpy, torch or dataframe) of shape (n, d)
+        :param cover_stop:(optional) additional cover vector used to train the model (either numpy, torch or dataframe) of shape (n,)
+        :param fit_kwargs: (optional) arguments that the model needs to use to fit the classifier
+        """
         # check_tabular(x_train)
         # check_cover(cover_train)
         # check_consistency(cover_train, x_train)
@@ -102,6 +100,11 @@ class ERT:
         self.fitted = True
     
     def get_conditional_prediction(self, x):
+        """
+        Get the predicted conditional coverage coverage P(Y\in C(X)|X)
+        
+        :x inputs (either numpy, torch or dataframe) of shape (n, d)
+        """
         eps = 1e-5
 
         if hasattr(self.model, "predict_proba"):
@@ -118,29 +121,45 @@ class ERT:
             output = torch.tensor(output, dtype=x.dtype)
 
         return output
-
-
-    def get_binary_prediction(self, x):
-        if isinstance(x, torch.Tensor):
-            x = x.detach().cpu().numpy()
-        output = self.model.predict(x)
-        if isinstance(x, pd.DataFrame):
-            output = pd.Series(output, index=x.index)
-        return output
         
     def add_loss(self, loss):
+        """
+        Add a loss to the table of all proper losses you want to evaluate conditional miscoverage
+        
+        :param loss: loss function of type loss(pred, y) and returns the loss value
+        """
         if self.added_losses is None:
             self.added_losses = [loss]
         else:
             self.added_losses.append(loss)
 
     def make_losses(self, alpha):
+        """
+        Generate the losses you want to evaluate the ERT
+        
+        :param alpha: Float in (0,1). The losses can depend on alpha
+        """
         self.tab_losses = [brier_score, make_L1_miscoverage(alpha), logloss]
         if self.added_losses is not None:
             for new_loss in self.added_losses:
                 self.tab_losses.append(new_loss)
        
     def evaluate_all(self, x, cover, alpha, n_splits = None, val_splits=None, random_state=42, underconfidence=False, overconfidence=False, **fit_kwargs):
+        """
+        Returns the ERT values for all losses in self.tab_losses
+            
+        :param x: Feature vector. Either numpy, torch or dataframe, of shape (n, d)
+        :param cover: Cover vector with 1 and 0, where 1=(Y in C(X)). Either numpy, torch or dataframe, of shape (n,)
+        :param alpha: Float in (0,1). Target coverage level. 
+        :param n_splits: (optional) Default=None, Number of splits to be done. If n_splits==0 then the model as to be already learned. Otherwise n_splits needs to be integer larger (or equal) than 2.
+        :param random_state: Integer (optional) Default=42. Random seed to get reproducable results. 
+        :param underconfidence: Boolean (optional) Default=False. Should calculate the under-confidence of the loss
+        :param overconfidence: Boolean (optional) Default=False. Should calculate the over-confidence of the loss
+        :param fit_kwargs: (optional) arguments that the model needs to use to fit the classifier
+    
+        """
+        
+
         # check_tabular(x)
         # check_cover(cover)
         # check_consistency(cover, x)
@@ -148,13 +167,13 @@ class ERT:
 
         self.make_losses(alpha)
 
-        ERN_values = {"ERN_"+loss.__name__: [] for loss in self.tab_losses}
+        ERT_values = {"ERT_"+loss.__name__: [] for loss in self.tab_losses}
         if underconfidence:
             for loss in self.tab_losses:
-                ERN_values["ERN_underconfident_"+loss.__name__] = []
+                ERT_values["ERT_underconfident_"+loss.__name__] = []
         if overconfidence:
             for loss in self.tab_losses:
-                ERN_values["ERN_overconfident_"+loss.__name__] = []
+                ERT_values["ERT_overconfident_"+loss.__name__] = []
         
         if n_splits is not None:
             check_n_splits(n_splits)
@@ -185,22 +204,22 @@ class ERT:
                 pred_test = self.get_conditional_prediction(x_test)
 
                 for loss in self.tab_losses:
-                    ERN_loss = evaluate_with_predictions(pred_test, cover_test, alpha, loss=loss)
-                    ERN_values["ERN_"+loss.__name__].append(ERN_loss)
+                    ERT_loss = evaluate_with_predictions(pred_test, cover_test, alpha, loss=loss)
+                    ERT_values["ERT_"+loss.__name__].append(ERT_loss)
 
                 if underconfidence:
                     underconfident_pred_test = clip_min(pred_test, 1-alpha)
                     for loss in self.tab_losses:
-                        ERN_loss = evaluate_with_predictions(underconfident_pred_test, cover_test, alpha, loss=loss)
-                        ERN_values["ERN_underconfident_"+loss.__name__].append(ERN_loss)
+                        ERT_loss = evaluate_with_predictions(underconfident_pred_test, cover_test, alpha, loss=loss)
+                        ERT_values["ERT_underconfident_"+loss.__name__].append(ERT_loss)
 
                 if overconfidence:
                     overconfident_pred_test = clip_max(pred_test, 1-alpha)
                     for loss in self.tab_losses:
-                        ERN_loss = evaluate_with_predictions(overconfident_pred_test, cover_test, alpha, loss=loss)
-                        ERN_values["ERN_overconfident_"+loss.__name__].append(ERN_loss)
+                        ERT_loss = evaluate_with_predictions(overconfident_pred_test, cover_test, alpha, loss=loss)
+                        ERT_values["ERT_overconfident_"+loss.__name__].append(ERT_loss)
                     
-            results = {key: np.mean(values) for key, values in ERN_values.items()}
+            results = {key: np.mean(values) for key, values in ERT_values.items()}
 
             return results
         else:
@@ -210,25 +229,37 @@ class ERT:
         pred = self.get_conditional_prediction(x)
         
         for loss in self.tab_losses:
-            ERN_loss = evaluate_with_predictions(pred, cover, alpha, loss=loss)
-            results["ERN_"+loss.__name__].append(ERN_loss)
+            ERT_loss = evaluate_with_predictions(pred, cover, alpha, loss=loss)
+            results["ERT_"+loss.__name__].append(ERT_loss)
 
         if underconfidence:
             underconfident_pred_test = clip_min(pred, 1-alpha)
             for loss in self.tab_losses:
-                ERN_loss = evaluate_with_predictions(underconfident_pred_test, cover, alpha, loss=loss)
-                ERN_values["ERN_underconfident_"+loss.__name__].append(ERN_loss)
+                ERT_loss = evaluate_with_predictions(underconfident_pred_test, cover, alpha, loss=loss)
+                ERT_values["ERT_underconfident_"+loss.__name__].append(ERT_loss)
 
         if overconfidence:
             overconfident_pred_test = clip_max(pred, 1-alpha)
             for loss in self.tab_losses:
-                ERN_loss = evaluate_with_predictions(overconfident_pred_test, cover, alpha, loss=loss)
-                ERN_values["ERN_overconfident_"+loss.__name__].append(ERN_loss)
+                ERT_loss = evaluate_with_predictions(overconfident_pred_test, cover, alpha, loss=loss)
+                ERT_values["ERT_overconfident_"+loss.__name__].append(ERT_loss)
 
         return results
    
   
     def evaluate(self, x, cover, alpha, n_splits = None, random_state=42, loss=brier_score, **fit_kwargs):
+        """
+        Evaluate the loss-ERT. 
+        
+        :param x: Feature vector. Either numpy, torch or dataframe, of shape (n, d)
+        :param cover: Cover vector with 1 and 0, where 1=(Y in C(X)). Either numpy, torch or dataframe, of shape (n,)
+        :param alpha: Float in (0,1). Target coverage level. 
+        :param n_splits: (optional) Default=None, Number of splits to be done. If n_splits==0 then the model as to be already learned. Otherwise n_splits needs to be integer larger (or equal) than 2.
+        :param random_state: (optional) Default=42. Random seed to get reproducable results. 
+        :param loss: (optional) Default=brier_score. loss function of type loss(pred, y) and returns the loss value 
+        :param fit_kwargs: (optional) arguments that the model needs to use to fit the classifier
+        """
+        
         # check_tabular(x)
         # check_cover(cover)
         # check_consistency(cover, x)
@@ -238,7 +269,7 @@ class ERT:
             check_n_splits(n_splits)
             kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
 
-            ERN_values = []
+            ERT_values = []
                         
             x_np = x.cpu().numpy() if isinstance(x, torch.Tensor) else x
 
@@ -251,11 +282,11 @@ class ERT:
 
                 pred_test = self.get_conditional_prediction(x_test)
 
-                ERN_loss = evaluate_with_predictions(pred_test, cover_test, alpha, loss=loss)
-                ERN_values.append(ERN_loss)
+                ERT_loss = evaluate_with_predictions(pred_test, cover_test, alpha, loss=loss)
+                ERT_values.append(ERT_loss)
 
-            results = {"ERN_"+loss.__name__: np.mean(ERN_values)}
-            return results
+            ERT_ell = np.mean(ERT_values)
+            return ERT_ell
             
         else:
             if not self.fitted:
@@ -263,8 +294,8 @@ class ERT:
         
         pred = self.get_conditional_prediction(x)
         
-        ERN_loss = evaluate_with_predictions(pred, cover, alpha, loss=loss)
-        results = {"ERN_"+loss.__name__: ERN_loss}
+        ERT_loss = evaluate_with_predictions(pred, cover, alpha, loss=loss)
+        results = {"ERT_"+loss.__name__: ERT_loss}
 
         return results
 

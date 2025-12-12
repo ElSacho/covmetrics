@@ -1,7 +1,8 @@
 import numpy as np
 import torch
 import pytest
-from conditional_coverage_metrics import *
+
+from src.covmetrics.dependance_metrics import *
 
 def to_backend(array, backend, dtype="float"):
     """Helper to create numpy/torch/list arrays with correct types."""
@@ -26,7 +27,7 @@ def test_independent_inputs_small_value(backend):
     sizes_b = to_backend(sizes, backend)
 
     estimator = HSIC(sigma_x=1, sigma_y=1)
-    val = estimator.evaluate(cover_b, sizes_b)
+    val = estimator.evaluate(sizes_b, cover_b)
     assert isinstance(val, float)
     assert val >= 0.0
     assert val < 1.0   # should be small-ish for independent
@@ -42,7 +43,7 @@ def test_dependent_inputs_large_value(backend):
     sizes_b = to_backend(sizes, backend, dtype="float")
 
     estimator = HSIC(sigma_x=1, sigma_y=1)
-    val = estimator.evaluate(cover_b, sizes_b)
+    val = estimator.evaluate(sizes_b, cover_b)
     assert isinstance(val, float)
     assert val > 0.1   # must detect dependence
 
@@ -52,7 +53,7 @@ def test_return_type_is_float(backend):
     cover = to_backend([0, 1, 0, 1], backend)
     sizes = to_backend([1.0, 2.0, 3.0, 4.0], backend)
     estimator = HSIC()
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
     assert isinstance(val, float)
 
 
@@ -65,11 +66,11 @@ def test_numpy_and_torch_equivalence():
 
     estimator = HSIC()
 
-    val_numpy = estimator.evaluate(np.array(cover, dtype=float),
-                                   np.array(sizes, dtype=float))
+    val_numpy = estimator.evaluate(np.array(sizes, dtype=float),
+                                   np.array(cover, dtype=float))
 
-    val_torch = estimator.evaluate(torch.tensor(cover, dtype=torch.float32),
-                                   torch.tensor(sizes, dtype=torch.float32))
+    val_torch = estimator.evaluate(torch.tensor(sizes, dtype=torch.float32),
+                                   torch.tensor(cover, dtype=torch.float32))
 
     # should be very close
     assert np.isclose(val_numpy, val_torch, atol=1e-6)
@@ -83,7 +84,7 @@ def test_length_mismatch_raises(backend):
     sizes = to_backend([1.0, 2.0], backend)  # shorter
     estimator = HSIC()
     with pytest.raises((ValueError, IndexError)):
-        estimator.evaluate(cover, sizes)
+        estimator.evaluate(sizes, cover)
 
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
@@ -92,7 +93,7 @@ def test_empty_inputs_raise(backend):
     sizes = to_backend([], backend)
     estimator = HSIC()
     with pytest.raises((ValueError, AssertionError)):
-        estimator.evaluate(cover, sizes)
+        estimator.evaluate(sizes, cover)
 
 
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
@@ -103,18 +104,18 @@ def test_invalid_cover_values_raise(backend):
 
     cover_bad = to_backend([0, 2, 1, -1], backend)
     with pytest.raises((ValueError, AssertionError)):
-        estimator.evaluate(cover_bad, sizes)
+        estimator.evaluate(sizes, cover_bad)
 
     cover_float_bad = to_backend([0.0, 0.5, 1.0, 0.2], backend)
     with pytest.raises((ValueError, AssertionError)):
-        estimator.evaluate(cover_float_bad, sizes)
+        estimator.evaluate(sizes, cover_float_bad)
 
 
 def test_backend_mismatch_numpy_cover_torch_sizes():
     cover = np.array([0, 1, 0, 1], dtype=float)            # numpy
     sizes = torch.tensor([1.0, 2.0, 3.0, 4.0])             # torch
     estimator = HSIC()
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
     assert isinstance(val, float)
 
 
@@ -122,7 +123,7 @@ def test_backend_mismatch_torch_cover_numpy_sizes():
     cover = torch.tensor([0.0, 1.0, 0.0, 1.0])
     sizes = np.array([1.0, 2.0, 3.0, 4.0])
     estimator = HSIC()
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
     assert isinstance(val, float)
 
 
@@ -140,6 +141,6 @@ def test_random_binary_cover_runs(backend):
         sizes = torch.tensor(sizes, dtype=torch.float32)
 
     estimator = HSIC(sigma_x=1, sigma_y=1)
-    val = estimator.evaluate(cover, sizes)
+    val = estimator.evaluate(sizes, cover)
     assert isinstance(val, float)
     assert val >= 0.0

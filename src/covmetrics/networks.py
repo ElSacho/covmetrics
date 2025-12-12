@@ -3,6 +3,7 @@ import numpy as np
 from lightgbm import LGBMClassifier
 import sklearn
 from probmetrics.calibrators import get_calibrator
+import multiprocessing as mp
 
 class CheapLGBMClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
     def _fit_model(self, idxs):
