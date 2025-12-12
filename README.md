@@ -43,7 +43,7 @@ from sklearn.linear_model import LogisticRegression
 ERT_estimator = ERT(model_cls=LogisticRegression)
 
 ```
-We recommand using our k-folds pre-implement version to evaluate the conditional miscoverage by doing :
+We recommend using our k-folds pre-implemented version to evaluate the conditional miscoverage by doing :
 
 
 ```python
