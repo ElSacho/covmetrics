@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import warnings
 from src.covmetrics.check import *
-from src.covmetrics.networks import CheapLGBMClassifier
+from src.covmetrics.classifiers import CheapLGBMClassifier
 
 
 def clip_max(x, val_max):

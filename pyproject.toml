@@ -10,7 +10,8 @@ readme = "readme.md"
 requires-python = ">=3.9"
 keywords = ['Metrics', 'Conformal', 'Conditional', 'Diagnostic']
 authors = [
-    { name = "Sacha Braun", email = "surname.lastname@inria.fr" },
+    { name = "Sacha Braun", email = "firstname.lastname@inria.fr" },
+    { name = "David Holzmüller", email = "firstname.lastname@inria.fr" },
 ]
 license = { file = "LICENCE" }
 

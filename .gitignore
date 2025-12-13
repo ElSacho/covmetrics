@@ -1,1 +1,4 @@
 deploy.sh
+.coverage
+.DS_Store
+**/.DS_Store

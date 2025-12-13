@@ -28,10 +28,12 @@ For a quick usage, you can evaluate a metric as follows:
 ```python
 from covmetrics.ERT import ERT 
 
-ERT_value = ERT().evaluate(x, cover, alpha, n_splits = 2)
+ERT_value = ERT().evaluate(x, cover, alpha, n_splits = 5)
 
 ```
-The deault classifier used to classiify the outputs is a LightGBM Classifier.
+Where the object "x" is a feature vector (numpy, torch or dataframe), and cover is a vector with 0's or 1's
+
+The default classifier used to classiify the outputs is a LightGBM Classifier.
 You can change this by replacing the model class of the classifier 
 
 ```python
@@ -45,7 +47,7 @@ We recommand using our k-folds pre-implement version to evaluate the conditional
 
 
 ```python
-ERT_estimator.evaluate(x_test, cover_test, alpha, n_splits = 2)
+ERT_estimator.evaluate(x_test, cover_test, alpha, n_splits = 5)
 ```
 
 But you can choose between training the classifier with some data and using it on other doing the following:

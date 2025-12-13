@@ -2,15 +2,8 @@ import torch
 import pandas as pd
 import numpy as np
 import random
+from src.covmetrics.utils import seed_everything
 
-def seed_everything(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False  
 
 def check_boolean(weighted):
     """Ensure weighted is a Boolean"""
@@ -189,20 +182,7 @@ def check_consistency(cover, groups):
             f"cover and groups must have the same length, got cover of shape {getattr(cover, 'shape', len(cover))} "
             f"and groups of shape {getattr(groups, 'shape', len(groups))}"
         )
-    
-def check_n_splits(n_splits):
-    """
-    Checks if n_splits is a valid integer greater than 0.
-    
-    Raises:
-        TypeError: If n_splits is not an integer.
-        ValueError: If n_splits is less than 1.
-    """
-    if not isinstance(n_splits, int):
-        raise TypeError(f"n_splits must be an integer, got {type(n_splits).__name__}")
-    if n_splits < 1:
-        raise ValueError("n_splits must be at least 1 for cross-validation.")
-    return True
+
 
 def check_loss(loss_fn):
     test_inputs = [
