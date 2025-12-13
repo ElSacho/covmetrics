@@ -31,10 +31,11 @@ from covmetrics.ERT import ERT
 ERT_value = ERT().evaluate(x, cover, alpha, n_splits = 5)
 
 ```
+
 Where the object "x" is a feature vector (numpy, torch or dataframe), and cover is a vector with 0's or 1's
 
-The default classifier used to classiify the outputs is a LightGBM Classifier.
-You can change this by replacing the model class of the classifier 
+The default classifier used to classify the outputs is a LightGBM classifier.
+You can change this by replacing the model class of the classifier:
 
 ```python
 from covmetrics.ERT import ERT 
