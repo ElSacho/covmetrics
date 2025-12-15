@@ -12,15 +12,16 @@ This package (PyTorch-based) currently contains different conditional coverage m
 - HSIC's Correlation.
 
 It accompanies our papers
-[Conditional Coverage Diagnostics for Conformal Prediction]().
+[Conditional Coverage Diagnostics for Conformal Prediction](https://arxiv.org/abs/2512.11779).
 Please cite us if you use this repository for research purposes.
 
 ## Installation
 
-Covmetrics is available via
+Work in progress: for now you can use the ERT file to use our metrics, it will be pip installable soon! 
+<!-- Covmetrics is available via
 ```bash
 pip install covmetrics
-```
+``` -->
 
 ## Using conditional coverage metrics
 
