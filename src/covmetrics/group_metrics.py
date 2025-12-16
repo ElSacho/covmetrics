@@ -3,7 +3,7 @@ from typing import Literal
 import numpy as np
 from src.covmetrics.check import *
 
-class CoverageGap:
+class CovGap:
     def __init__(self, alpha=None):
         """
         Initialize the CovGap metric
@@ -245,7 +245,7 @@ class EOC:
         if alpha is None:
             alpha = self.alpha
         groups = self.grouping(y, number_max_groups)
-        return CoverageGap(alpha).evaluate(groups, cover, weighted=weighted)
+        return CovGap(alpha).evaluate(groups, cover, weighted=weighted)
     
     def evaluate(self, y, cover, alpha=None, number_max_groups=10, weighted=False):
         """

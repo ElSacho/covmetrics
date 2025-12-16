@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "covmetrics"
 dynamic = ["version"]
 description = "Metrics for conditional coverage estimation"
-readme = "readme.md"
+readme = "README.md"
 requires-python = ">=3.9"
 keywords = ['Metrics', 'Conformal', 'Conditional', 'Coverage', 'Diagnostic']
 authors = [
@@ -65,7 +65,7 @@ include = ["src/covmetrics"]
 packages = ["src/covmetrics"]
 
 [project.urls]
-Documentation = "https://github.com/ElSacho/covmetrics#readme"
+Documentation = "https://github.com/ElSacho/covmetrics#README"
 Issues = "https://github.com/ElSacho/covmetrics/issues"
 Source = "https://github.com/ElSacho/covmetrics"
 

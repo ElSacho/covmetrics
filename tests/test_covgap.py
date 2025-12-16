@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import pytest
 
-from src.covmetrics.group_metrics import CoverageGap
+from src.covmetrics.group_metrics import CovGap
 
 
 def to_backend(array, backend, dtype="float"):
@@ -25,7 +25,7 @@ def to_backend(array, backend, dtype="float"):
 def test_single_group_perfect_cover(backend):
     cover = to_backend([1, 1, 1, 1], backend, "float")
     groups = to_backend([0, 0, 0, 0], backend, "int")
-    estimator = CoverageGap(alpha=0.1)
+    estimator = CovGap(alpha=0.1)
     val = estimator.evaluate(groups, cover)
     expected = abs(1.0 - (1 - 0.1))  # |1 - 0.9| = 0.1
     assert np.isclose(val, expected)
@@ -34,7 +34,7 @@ def test_single_group_perfect_cover(backend):
 def test_weighted_not_boolean_raises(backend):
     cover = to_backend([1, 1, 1, 1], backend, "float")
     groups = to_backend([0, 0, 0, 0], backend, "int")
-    estimator = CoverageGap(alpha=0.1)
+    estimator = CovGap(alpha=0.1)
     with pytest.raises(ValueError): 
         estimator.evaluate(groups, cover, weighted=2)
 
@@ -43,7 +43,7 @@ def test_weighted_not_boolean_raises(backend):
 def test_single_group_no_cover(backend):
     cover = to_backend([0, 0, 0, 0], backend, "float")
     groups = to_backend([0, 0, 0, 0], backend, "int")
-    estimator = CoverageGap(alpha=0.2)
+    estimator = CovGap(alpha=0.2)
     val = estimator.evaluate(groups, cover)
     expected = abs(0.0 - (1 - 0.2))  # |0 - 0.8| = 0.8
     assert np.isclose(val, expected)
@@ -53,7 +53,7 @@ def test_single_group_no_cover(backend):
 def test_two_groups_balanced_cover(backend):
     cover = to_backend([1, 1, 1, 0, 0, 0], backend, "float")
     groups = to_backend([0, 0, 0, 1, 1, 1], backend, "int")
-    estimator = CoverageGap(alpha=0.25)
+    estimator = CovGap(alpha=0.25)
     val = estimator.evaluate(groups, cover)
     expected = 0.5 * 0.25 + 0.5 * 0.75
     assert np.isclose(val, expected)
@@ -63,7 +63,7 @@ def test_two_groups_balanced_cover(backend):
 def test_alpha_override(backend):
     cover = to_backend([1, 0, 1, 0], backend, "float")
     groups = to_backend([0, 0, 1, 1], backend, "int")
-    estimator = CoverageGap(alpha=0.1)
+    estimator = CovGap(alpha=0.1)
     val1 = estimator.evaluate(groups, cover)
     val2 = estimator.evaluate(groups, cover, alpha=0.5)
     assert not np.isclose(val1, val2)
@@ -73,7 +73,7 @@ def test_alpha_override(backend):
 def test_unbalanced_group_sizes(backend):
     cover = to_backend([1, 1, 0, 0, 0], backend, "float")
     groups = to_backend([0, 0, 1, 1, 1], backend, "int")
-    estimator = CoverageGap(alpha=0.5)
+    estimator = CovGap(alpha=0.5)
     expected = (2/5)*0.5 + (3/5)*0.5
     val = estimator.evaluate(groups, cover)
     assert np.isclose(val, expected)
@@ -83,7 +83,7 @@ def test_unbalanced_group_sizes(backend):
 def test_return_type_is_float(backend):
     cover = to_backend([1, 0, 1, 1], backend, "float")
     groups = to_backend([0, 0, 1, 1], backend, "int")
-    estimator = CoverageGap(alpha=0.3)
+    estimator = CovGap(alpha=0.3)
     val = estimator.evaluate(groups, cover)
     assert isinstance(val, float)
 
@@ -94,7 +94,7 @@ def test_return_type_is_float(backend):
 def test_length_mismatch_raises(backend):
     cover = to_backend([1, 0, 1], backend, "float")
     groups = to_backend([0, 0], backend, "int")  # shorter
-    estimator = CoverageGap(alpha=0.2)
+    estimator = CovGap(alpha=0.2)
     with pytest.raises((ValueError, IndexError)):
         estimator.evaluate(groups, cover)
 
@@ -107,7 +107,7 @@ def test_wrong_shape_inputs(backend):
     else:
         cover = torch.tensor([[1, 0], [1, 1]], dtype=torch.float32)
         groups = torch.tensor([0, 1], dtype=torch.int64)
-    estimator = CoverageGap(alpha=0.2)
+    estimator = CovGap(alpha=0.2)
     with pytest.raises(Exception):
         estimator.evaluate(groups, cover)
 
@@ -115,7 +115,7 @@ def test_wrong_shape_inputs(backend):
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
 def test_cover_values_must_be_binary(backend):
     groups = to_backend([0, 0, 1, 1], backend, "int")
-    estimator = CoverageGap(alpha=0.2)
+    estimator = CovGap(alpha=0.2)
 
     cover_invalid = to_backend([0, 2, 1, -1], backend, "float")
     with pytest.raises((ValueError, AssertionError)):
@@ -129,7 +129,7 @@ def test_cover_values_must_be_binary(backend):
 @pytest.mark.parametrize("backend", ["numpy", "torch"])
 def test_non_integer_group_labels_raises(backend):
     cover = to_backend([1, 0, 1, 0], backend, "float")
-    estimator = CoverageGap(alpha=0.2)
+    estimator = CovGap(alpha=0.2)
 
     if backend == "numpy":
         groups_str = np.array(["a", "a", "b", "b"])
@@ -150,7 +150,7 @@ def test_non_integer_group_labels_raises(backend):
 def test_multiple_groups_three_classes(backend):
     cover = to_backend([1, 0, 1, 0, 1, 0], backend, "float")
     groups = to_backend([0, 0, 1, 1, 2, 2], backend, "int")
-    estimator = CoverageGap(alpha=0.2)
+    estimator = CovGap(alpha=0.2)
     expected = (2/6)*0.3 + (2/6)*0.3 + (2/6)*0.3
     val = estimator.evaluate(groups, cover)
     assert np.isclose(val, expected)
@@ -160,7 +160,7 @@ def test_multiple_groups_three_classes(backend):
 def test_groups_with_noncontiguous_labels(backend):
     cover = to_backend([1, 1, 0, 0], backend, "float")
     groups = to_backend([10, 10, 42, 42], backend, "int")
-    estimator = CoverageGap(alpha=0.5)
+    estimator = CovGap(alpha=0.5)
     expected = 0.5*0.5 + 0.5*0.5
     val = estimator.evaluate(groups, cover)
     assert np.isclose(val, expected)
@@ -170,7 +170,7 @@ def test_groups_with_noncontiguous_labels(backend):
 def test_many_groups_small_sizes(backend):
     cover = to_backend([1, 0, 1, 0], backend, "float")
     groups = to_backend([0, 1, 2, 3], backend, "int")
-    estimator = CoverageGap(alpha=0.25)
+    estimator = CovGap(alpha=0.25)
     expected = (0.25+0.75+0.25+0.75)/4
     val = estimator.evaluate(groups, cover)
     assert np.isclose(val, expected)
@@ -180,7 +180,7 @@ def test_many_groups_small_sizes(backend):
 def test_large_group_and_small_groups(backend):
     cover = to_backend([1]*50 + [0,1,0], backend, "float")
     groups = to_backend([0]*50 + [1,2,3], backend, "int")
-    estimator = CoverageGap(alpha=0.1)
+    estimator = CovGap(alpha=0.1)
     expected = (50/50-0.9)*0.25 + (0.9-0/1)*0.25 + (1/1-0.9)*0.25 + (0.9-0/1)*0.25
     val = estimator.evaluate(groups, cover)
     assert np.isclose(val, expected)
@@ -190,7 +190,7 @@ def test_large_group_and_small_groups(backend):
 def test_large_group_and_small_groups_weithed(backend):
     cover = to_backend([1]*50 + [0,1,0], backend, "float")
     groups = to_backend([0]*50 + [1,2,3], backend, "int")
-    estimator = CoverageGap(alpha=0.1)
+    estimator = CovGap(alpha=0.1)
     expected = (50/50-0.9)*50/53 + (0.9-0/1)*1/53 + (1/1-0.9)*1/53 + (0.9-0/1)*1/53
     val = estimator.evaluate(groups, cover, weighted=True)
     assert np.isclose(val, expected)
@@ -207,14 +207,14 @@ def test_alpha_valid_and_invalid(backend):
 
     # valid alpha in (0,1)
     for good_alpha in [0.0, 0.5, 1.0]:
-        estimator = CoverageGap(alpha=good_alpha)
+        estimator = CovGap(alpha=good_alpha)
         val = estimator.evaluate(groups, cover)
         assert isinstance(val, float)
 
     # invalid alphas
     for bad_alpha in [-0.1, 1.5]:
         with pytest.raises((ValueError, AssertionError, TypeError)):
-            estimator = CoverageGap(alpha=bad_alpha)
+            estimator = CovGap(alpha=bad_alpha)
             estimator.evaluate(groups, cover, alpha=bad_alpha)
 
 
@@ -222,7 +222,7 @@ def test_alpha_valid_and_invalid(backend):
 def test_emptyness(backend):
     X = to_backend([], backend, "float")
     cover = to_backend([], backend, "int")
-    estimator = CoverageGap(alpha=0.1)
+    estimator = CovGap(alpha=0.1)
             
     # Expect either ValueError or TypeError
     with pytest.raises((ValueError, TypeError)):
