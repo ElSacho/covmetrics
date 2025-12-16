@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import random
 from src.covmetrics.utils import seed_everything
+import inspect
 
 
 def check_boolean(weighted):
@@ -19,6 +20,43 @@ def check_alpha(alpha):
         raise TypeError("alpha must be a float or int.")
     if not (0 <= alpha <= 1):
         raise ValueError("alpha must be between 0 and 1 (inclusive).")
+    
+def check_alpha_tab_ok(alpha, cover):
+    """
+    Ensure alpha is either:
+    - a float/int in [0, 1], or
+    - an array-like of the same type and length as cover,
+      with all values in [0, 1].
+    """
+    if np.isscalar(alpha):
+        try:
+            alpha = float(alpha)
+        except Exception:
+            raise TypeError("alpha must be a float, int, or array-like.")
+        if not (0 <= alpha <= 1):
+            raise ValueError("alpha must be between 0 and 1 (inclusive).")
+        return alpha
+
+    # Convert alpha and cover to arrays
+    try:
+        alpha_arr = np.asarray(alpha, dtype=float)
+    except Exception:
+        raise TypeError("alpha must be a float, int, or array-like.")
+
+    cover_arr = np.asarray(cover)
+
+    # Vérifie que alpha et cover ont le même type d'objet
+    if type(alpha) != type(cover):
+        raise TypeError("alpha and cover must be of the same type when alpha is not a scalar.")
+
+    if alpha_arr.shape[0] != cover_arr.shape[0]:
+        raise ValueError("alpha must have the same length as cover.")
+
+    if np.any(alpha_arr < 0) or np.any(alpha_arr > 1):
+        raise ValueError("All values in alpha must be between 0 and 1 (inclusive).")
+
+    return alpha_arr
+
     
 def check_delta(alpha):
     """Ensure delta is a float in (0,1)."""
@@ -74,13 +112,14 @@ def check_tabular(X):
     if isinstance(X, pd.DataFrame):
         X = X.values
 
+    if not isinstance(X, (np.ndarray, torch.Tensor)):
+        raise TypeError(
+            f"X must be np.ndarray or torch.Tensor or dataframe, got {type(X)}"
+    )
+
     if X.ndim != 2:
         raise ValueError(f"X must be 2D (tabular), got shape {X.shape}")
-
     
-    if not isinstance(X, np.ndarray) or not  isinstance(X, torch.Tensor):
-        raise TypeError(f"X must be np.ndarray or torch.Tensor or dataframe, got {type(X)}")
-
 
 def check_tabular_strict(X):
     """
@@ -192,7 +231,16 @@ def check_loss(loss_fn):
     
     for p, q in test_inputs:
         try:
-            result = loss_fn(p, q)
+            sig = inspect.signature(loss_fn)
+
+            has_alpha_arg = "alpha" in sig.parameters
+
+            if has_alpha_arg:
+                print('has')
+                result = loss_fn(p, q, alpha=0.1)
+            else:
+                print('not has')
+                result = loss_fn(p, q)
             
             if isinstance(result, (np.ndarray, torch.Tensor)):
                 if result.shape != np.shape(p):

@@ -2,6 +2,7 @@ from sklearn.model_selection import KFold
 import torch
 import numpy as np
 import pandas as pd
+import inspect
 import warnings
 from src.covmetrics.check import *
 from src.covmetrics.classifiers import CheapLGBMClassifier
@@ -38,10 +39,9 @@ def logloss(pred_proba, cover, eps=1e-6):
         pred_proba = np.clip(pred_proba, eps, 1-eps)
         return - cover * np.log(pred_proba) - (1-cover)*np.log(1-pred_proba)
 
-def make_L1_miscoverage(alpha):
-    def L1_miscoverage(pred_proba, cover):
+def L1_miscoverage(pred_proba, cover, alpha):
         threshold = 1 - alpha
-        
+    
         out = cover * 0
         
         pos = pred_proba < threshold
@@ -51,8 +51,6 @@ def make_L1_miscoverage(alpha):
         out[neg] = -(threshold - cover)[neg]
 
         return - out
-    
-    return L1_miscoverage
            
 class ERT:
     def __init__(self, model_cls=CheapLGBMClassifier, **model_kwargs):    
@@ -84,14 +82,13 @@ class ERT:
         :param cover_stop:(optional) additional cover vector used to train the model (either numpy, torch or dataframe) of shape (n,)
         :param fit_kwargs: (optional) arguments that the model needs to use to fit the classifier
         """
-        # check_tabular(x_train)
-        # check_cover(cover_train)
-        # check_consistency(cover_train, x_train)
+        check_tabular(x_train)
+        check_cover(cover_train)
+        check_consistency(cover_train, x_train)
         if x_stop is not None:
-            # check_tabular(x_stop)
-            # check_cover(cover_stop)
-            # check_consistency(cover_stop, x_stop)
-            pass
+            check_tabular(x_stop)
+            check_cover(cover_stop)
+            check_consistency(cover_stop, x_stop)
 
         if cover_stop is not None:
             self.model.fit(x_train, cover_train, X_val=x_stop, y_val=cover_stop, **fit_kwargs)
@@ -132,31 +129,28 @@ class ERT:
         
         :param loss: loss function of type loss(pred, y) and returns the loss value
         """
-        check_loss(loss)
         if self.added_losses is None:
             self.added_losses = [loss]
         else:
             self.added_losses.append(loss)
 
-    def make_losses(self, alpha):
+    def make_losses(self):
         """
         Generate the losses you want to evaluate the ERT
-        
-        :param alpha: Float in (0,1). The losses can depend on alpha
         """
-        self.tab_losses = [brier_score, make_L1_miscoverage(alpha), logloss]
+        self.tab_losses = [brier_score, L1_miscoverage, logloss]
         if self.added_losses is not None:
             for new_loss in self.added_losses:
                 self.tab_losses.append(new_loss)
        
-    def evaluate_multiple_losses(self, x, cover, alpha, n_splits = None, val_splits=None, random_state=42, all_losses_to_evaluate=None, underconfidence=False, overconfidence=False, **fit_kwargs):
+    def evaluate_multiple_losses(self, x, cover, alpha, n_splits = 5, random_state=42, all_losses_to_evaluate=None, underconfidence=False, overconfidence=False, **fit_kwargs):
         """
         Returns the ERT values for all losses in self.tab_losses
             
         :param x: Feature vector. Either numpy, torch or dataframe, of shape (n, d)
         :param cover: Cover vector with 1 and 0, where 1=(Y in C(X)). Either numpy, torch or dataframe, of shape (n,)
         :param alpha: Float in (0,1). Target coverage level. 
-        :param n_splits: (optional) Default=None, Number of splits to be done. If n_splits==0 then the model as to be already learned. Otherwise n_splits needs to be integer larger (or equal) than 2.
+        :param n_splits: (optional) Default=5, Number of splits to be done. If n_splits==0 then the model as to be already learned. Otherwise n_splits needs to be integer larger (or equal) than 2.
         :param random_state: Integer (optional) Default=42. Random seed to get reproducable results. 
         
         :param underconfidence: Boolean (optional) Default=False. Should calculate the under-confidence of the loss
@@ -167,15 +161,14 @@ class ERT:
         check_tabular(x)
         check_cover(cover)
         check_consistency(cover, x)
-        check_alpha(alpha)
-        if all_losses_to_evaluate is not None:
-            for loss in all_losses_to_evaluate:
-                check_loss(loss)
-        else:
-            self.make_losses(alpha)
+        check_alpha_tab_ok(alpha, cover)
+        
+        if all_losses_to_evaluate is None:
+            self.make_losses()
             all_losses_to_evaluate = self.tab_losses
 
         ERT_values = {"ERT_"+loss.__name__: [] for loss in all_losses_to_evaluate}
+        
         if underconfidence:
             for loss in all_losses_to_evaluate:
                 ERT_values["ERT_underconfident_"+loss.__name__] = []
@@ -196,40 +189,30 @@ class ERT:
                 else:
                     cover_train, cover_test = cover[train_index], cover[test_index]
 
-                self.init_model()
-                if val_splits is not None:
-                    n_val = int(len(x_train) * val_splits)
-                    if isinstance(x_train, (pd.DataFrame, pd.Series)):
-                        x_val = x_train.iloc[:n_val]
-                        cover_val = cover_train.iloc[:n_val]
-                        x_train = x_train.iloc[n_val:]
-                        cover_train = cover_train.iloc[n_val:]
-                    else:
-                        # Cas NumPy ou listes
-                        x_val = x_train[:n_val]
-                        cover_val = cover_train[:n_val]
-                        x_train = x_train[n_val:]
-                        cover_train = cover_train[n_val:]
-                    self.model.fit(x_train, cover_train, X_val=x_val, y_val=cover_val, **fit_kwargs)
+                if not np.isscalar(alpha):
+                    alpha_test = alpha[test_index]
                 else:
-                    self.model.fit(x_train, cover_train, **fit_kwargs)
+                    alpha_test = alpha
+
+                self.init_model()
+                self.model.fit(x_train, cover_train, **fit_kwargs)
 
                 pred_test = self.get_conditional_prediction(x_test)
 
                 for loss in all_losses_to_evaluate:
-                    ERT_loss = evaluate_with_predictions(pred_test, cover_test, alpha, loss=loss)
+                    ERT_loss = evaluate_with_predictions(pred_test, cover_test, alpha_test, loss=loss)
                     ERT_values["ERT_"+loss.__name__].append(ERT_loss)
 
                 if underconfidence:
                     underconfident_pred_test = clip_min(pred_test, 1-alpha)
                     for loss in all_losses_to_evaluate:
-                        ERT_loss = evaluate_with_predictions(underconfident_pred_test, cover_test, alpha, loss=loss)
+                        ERT_loss = evaluate_with_predictions(underconfident_pred_test, cover_test, alpha_test, loss=loss)
                         ERT_values["ERT_underconfident_"+loss.__name__].append(ERT_loss)
 
                 if overconfidence:
                     overconfident_pred_test = clip_max(pred_test, 1-alpha)
                     for loss in all_losses_to_evaluate:
-                        ERT_loss = evaluate_with_predictions(overconfident_pred_test, cover_test, alpha, loss=loss)
+                        ERT_loss = evaluate_with_predictions(overconfident_pred_test, cover_test, alpha_test, loss=loss)
                         ERT_values["ERT_overconfident_"+loss.__name__].append(ERT_loss)
                     
             results = {key: np.mean(values) for key, values in ERT_values.items()}
@@ -237,7 +220,7 @@ class ERT:
             return results
         else:
             if not self.fitted:
-                raise Exception("You need to first fit the model. You can evaluate with cross validation using cross_val == True")
+                raise Exception("You need to first fit the model. You can evaluate with cross validation using n_splits > 1")
         
         pred = self.get_conditional_prediction(x)
         
@@ -258,14 +241,14 @@ class ERT:
 
         return ERT_values
   
-    def evaluate(self, x, cover, alpha, n_splits = None, random_state=42, loss=None, **fit_kwargs):
+    def evaluate(self, x, cover, alpha, n_splits = 5, random_state=42, loss=None, **fit_kwargs):
         """
         Evaluate the loss-ERT. 
         
         :param x: Feature vector. Either numpy, torch or dataframe, of shape (n, d)
         :param cover: Cover vector with 1 and 0, where 1=(Y in C(X)). Either numpy, torch or dataframe, of shape (n,)
         :param alpha: Float in (0,1). Target coverage level. 
-        :param n_splits: (optional) Default=None, Number of splits to be done. If n_splits==0 then the model as to be already learned. Otherwise n_splits needs to be integer larger (or equal) than 2.
+        :param n_splits: (optional) Default=5, Number of splits to be done. If n_splits==0 then the model as to be already learned. Otherwise n_splits needs to be integer larger (or equal) than 2.
         :param random_state: (optional) Default=42. Random seed to get reproducable results. 
         :param loss: (optional) Default=brier_score. loss function of type loss(pred, y) and returns the loss value 
         :param fit_kwargs: (optional) arguments that the model needs to use to fit the classifier
@@ -277,10 +260,9 @@ class ERT:
         check_tabular(x)
         check_cover(cover)
         check_consistency(cover, x)
-        check_alpha(alpha)
+        check_alpha_tab_ok(alpha, cover)
         if loss == None:
-            loss = make_L1_miscoverage(alpha)
-        check_loss(loss)
+            loss = L1_miscoverage
         
         if n_splits is not None:
             check_n_splits(n_splits)
@@ -296,12 +278,17 @@ class ERT:
                     cover_train, cover_test = cover.iloc[train_index], cover.iloc[test_index]
                 else:
                     cover_train, cover_test = cover[train_index], cover[test_index]
+                if not np.isscalar(alpha):
+                    alpha_test = alpha[test_index]
+                else:
+                    alpha_test = alpha
+
                 self.init_model()
                 self.model.fit(x_train, cover_train, **fit_kwargs)
 
                 pred_test = self.get_conditional_prediction(x_test)
 
-                ERT_loss = evaluate_with_predictions(pred_test, cover_test, alpha, loss=loss)
+                ERT_loss = evaluate_with_predictions(pred_test, cover_test, alpha_test, loss=loss)
                 ERT_values.append(ERT_loss)
 
             ERT_ell = np.mean(ERT_values)
@@ -309,7 +296,7 @@ class ERT:
             
         else:
             if not self.fitted:
-                raise Exception("You need to first fit the model. You can evaluate with cross validation using cross_val == True")
+                raise Exception("You need to first fit the model. You can evaluate with cross validation using n_splits > 1")
     
         pred = self.get_conditional_prediction(x)
 
@@ -331,7 +318,12 @@ def evaluate_with_predictions(pred, cover, alpha, loss=brier_score):
     Returns : 
         The risk difference between the constant predictor equal to 1-alpha and the prediction.
     """
-    loss_pred = loss(pred, cover)
-    loss_bayes = loss(1-alpha, cover)
+    sig = inspect.signature(loss)
+    if "alpha" in sig.parameters:
+        loss_pred = loss(pred, cover, alpha=alpha)
+        loss_bayes = loss(1-alpha, cover, alpha=alpha)
+    else:
+        loss_pred = loss(pred, cover)
+        loss_bayes = loss(1-alpha, cover)
     # return np.mean(np.array(loss_bayes)) - np.mean(np.array(loss_pred))
     return np.mean(np.asarray(loss_bayes, dtype=float)) - np.mean(np.asarray(loss_pred, dtype=float))
