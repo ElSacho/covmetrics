@@ -29,11 +29,11 @@ For a quick usage, you can evaluate a metric as follows:
 ```python
 from covmetrics import ERT 
 
-ERT_value = ERT().evaluate(x, cover, alpha, n_splits = 5)
+ERT_value = ERT().evaluate(x, cover, alpha)
 
 ```
 
-Where the object "x" is a feature vector (numpy, torch or dataframe), and cover is a vector with 0's or 1's
+Where the object "x" is a feature vector of shape (n_samples, n_features) (numpy, torch or dataframe), and cover is a vector of shape (n_samples) with 0's or 1's
 
 The default classifier used to classify the outputs is a LightGBM classifier.
 You can change this by replacing the model class of the classifier:
@@ -45,7 +45,7 @@ from sklearn.linear_model import LogisticRegression
 ERT_estimator = ERT(model_cls=LogisticRegression)
 ```
 
-We recommend using our k-folds pre-implemented version to evaluate the conditional miscoverage by doing:
+We recommend using our k-folds pre-implemented version to evaluate the conditional miscoverage by doing (default value is 5):
 
 
 ```python
@@ -56,8 +56,10 @@ But you can choose between training the classifier with some data and using it o
 
 ```python
 ERT_estimator.fit(x_train, cover_train)
-ERT_value = ERT_estimator.evaluate(x_test, cover_test, alpha, n_splits=None)
+ERT_value = ERT_estimator.evaluate(x_test, cover_test, alpha, n_splits=0)
 ```
+
+## Modifying the loss function
 
 The default loss used to evaluate the classifier provides a lower bound on the $L_1$-ERT. You can change the loss by doing :
 
@@ -65,12 +67,28 @@ The default loss used to evaluate the classifier provides a lower bound on the $
 ERT_estimator.evaluate(x_test, cover_test, alpha, loss=your_loss)
 ```
 
+The package already provides several losses functions to evaluate your models. You can import them as follows:
+
+```python
+from covmetrics.losses import (
+    brier_score,
+    logloss,
+    L1_miscoverage,
+    brier_score_over,
+    L1_miscoverage_over,
+    logloss_over,
+    brier_score_under,
+    logloss_under,
+    L1_miscoverage_under
+)
+```
+
 If you want to evaluate more losses at the same time, you can use 
 ```python
-ERT_value = ERT_estimator.evaluate_multiple_losses(x_test, cover_test, alpha, all_losses_to_evaluate = List_of_all_your_losses)
+ERT_value = ERT_estimator.evaluate_multiple_losses(x_test, cover_test, alpha, all_losses = List_of_all_your_losses)
 ```
 Which returns a dictionnary with all evaluated losses .
-By default, if all_losses_to_evaluate=None, the metrics evaluated are the $L_1$-ERT, $L_2$-ERT and KL-ERT.
+By default, if all_losses=None, the metrics evaluated are the $L_1$-ERT, $L_2$-ERT and KL-ERT.
 
 ## Using a custom classifier
 
@@ -83,7 +101,7 @@ You can also use your own classifier with ERT. To do this, define a class with t
 Once your class is defined, you can instantiate and evaluate it with ERT as follows:
 
 ```python
-ERT_estimator = ERT( your_model_class, one_argument=k, another_argument="p")
+ERT_estimator = ERT(your_model_class, one_argument=k, another_argument="p")
 ERT_value = ERT_estimator.evaluate(x_test, cover_test, alpha, one_fit_argument=m, another_fit_argument="M")
 ```
 

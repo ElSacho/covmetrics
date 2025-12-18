@@ -1,7 +1,7 @@
 import torch 
 from typing import Literal
 import numpy as np
-from src.covmetrics.check import *
+from covmetrics.check import *
 
 class CovGap:
     def __init__(self, alpha=None):

@@ -2,7 +2,7 @@ import torch
 import pandas as pd
 import numpy as np
 import random
-from src.covmetrics.utils import seed_everything
+from covmetrics.utils import seed_everything
 import inspect
 
 

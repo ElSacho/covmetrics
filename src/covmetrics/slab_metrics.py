@@ -1,8 +1,8 @@
 import torch 
 import numpy as np
 
-from src.covmetrics.check import *
-from src.covmetrics.utils import seed_everything
+from covmetrics.check import *
+from covmetrics.utils import seed_everything
 
 
 # Original code from https://github.com/Shai128/oqr

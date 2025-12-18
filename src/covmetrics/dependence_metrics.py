@@ -1,7 +1,7 @@
 import torch 
 from scipy import stats
 import numpy as np
-from src.covmetrics.check import *
+from covmetrics.check import *
 
 
 class PearsonCorrelation:

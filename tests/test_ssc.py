@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import pytest
-from src.covmetrics.group_metrics import SSC
+from covmetrics.group_metrics import SSC
 
 def to_backend(array, backend, dtype="float"):
     """Helper to create numpy or torch arrays with the right type."""

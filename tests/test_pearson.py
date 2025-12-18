@@ -3,7 +3,7 @@ import torch
 import pytest
 from scipy import stats
 
-from src.covmetrics.dependence_metrics import PearsonCorrelation
+from covmetrics.dependence_metrics import PearsonCorrelation
 
 
 def to_backend(array, backend, dtype="float"):

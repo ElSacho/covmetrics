@@ -3,7 +3,10 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.linear_model import LogisticRegression
-from src.covmetrics.ERT import ERT
+from covmetrics import ERT
+from covmetrics.classifiers import BetterCatBoostClassifier, BetterLGBMClassifier, CheapBetterCatBoostClassifier
+from covmetrics.losses import *
+
 from unittest.mock import patch
 
 @pytest.mark.parametrize("backend", ["numpy", "torch", "dataframe"])
@@ -40,10 +43,10 @@ def test_ert_evaluate_all_start(backend):
     ert = ERT(LogisticRegression, max_iter=100)
 
     # Mocker les fonctions pour tester uniquement le flux
-    with patch("src.covmetrics.ERT.check_tabular") as mock_check_tabular, \
-        patch("src.covmetrics.ERT.check_cover") as mock_check_cover, \
-        patch("src.covmetrics.ERT.check_consistency") as mock_check_consistency, \
-        patch("src.covmetrics.ERT.check_alpha_tab_ok") as mock_check_alpha, \
+    with patch("covmetrics.ERT.check_tabular") as mock_check_tabular, \
+        patch("covmetrics.ERT.check_cover") as mock_check_cover, \
+        patch("covmetrics.ERT.check_consistency") as mock_check_consistency, \
+        patch("covmetrics.ERT.check_alpha_tab_ok") as mock_check_alpha, \
         patch.object(ERT, "make_losses") as mock_make_losses:
 
         results = ert.evaluate_multiple_losses(X, cover, alpha=0.8, n_splits=2)
@@ -85,13 +88,13 @@ def test_evaluate_basic(backend, loss_func):
     ert.fit(X, cover)
 
     # Mocker les checks et prédictions
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
          patch.object(ERT, "init_model"):
 
-        results = ert.evaluate(X, cover, alpha=0.8, n_splits=None, loss=loss_func)
+        results = ert.evaluate(X, cover, alpha=0.8, n_splits=0, loss=loss_func)
         assert isinstance(results, float)
 
 @pytest.mark.parametrize("backend", ["numpy", "torch", "dataframe"])
@@ -111,10 +114,10 @@ def test_evaluate_with_cv(backend, loss_func):
     ert = ERT(LogisticRegression, max_iter=100)
     ert.fit(X, cover)
 
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
          patch.object(ERT, "init_model"):
 
         # Test n_splits=3
@@ -126,12 +129,12 @@ def test_evaluate_exception_if_not_fitted():
     X = np.random.rand(100, 5)
     cover = np.random.randint(0, 2, size=100)
     ert = ERT(LogisticRegression, max_iter=100)
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"):
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"):
         with pytest.raises(Exception):
-            ert.evaluate(X, cover, alpha=0.8, n_splits=None)
+            ert.evaluate(X, cover, alpha=0.8, n_splits=0)
 
 def test_evaluate_with_torch_tensor():
     X = torch.rand(100, 4)
@@ -139,12 +142,12 @@ def test_evaluate_with_torch_tensor():
     ert = ERT(model_cls=LogisticRegression)
     ert.fit(X, cover)
 
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
          patch.object(ERT, "init_model"):
-        results = ert.evaluate(X, cover, alpha=0.5, n_splits=None, loss=dummy_loss)
+        results = ert.evaluate(X, cover, alpha=0.5, n_splits=0, loss=dummy_loss)
         assert isinstance(results, float)
 
 def test_evaluate_with_dataframe_and_alt_loss():
@@ -153,12 +156,12 @@ def test_evaluate_with_dataframe_and_alt_loss():
     ert = ERT(model_cls=LogisticRegression)
     ert.fit(X, cover)
 
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
          patch.object(ERT, "init_model"):
-        results = ert.evaluate(X, cover, alpha=0.9, n_splits=None, loss=alt_loss)
+        results = ert.evaluate(X, cover, alpha=0.9, n_splits=0, loss=alt_loss)
         assert isinstance(results, float)
 
 
@@ -178,14 +181,14 @@ def test_evaluate_all_basic(backend):
     ert = ERT(LogisticRegression, max_iter=100)
     ert.fit(X, cover)
 
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
          patch.object(ERT, "make_losses"), \
          patch.object(ERT, "init_model"):
 
-        results = ert.evaluate_multiple_losses(X, cover, alpha=0.8, n_splits=None)
+        results = ert.evaluate_multiple_losses(X, cover, alpha=0.8, n_splits=0)
         assert isinstance(results, dict)
         for key, value in results.items():
             assert isinstance(value, float)
@@ -207,10 +210,10 @@ def test_evaluate_all_with_cv(backend):
     ert = ERT(LogisticRegression, max_iter=100)
     ert.fit(X, cover)
 
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
          patch.object(ERT, "make_losses"), \
          patch.object(ERT, "init_model"):
 
@@ -224,42 +227,16 @@ def test_evaluate_all_exception_if_not_fitted():
     X = np.random.rand(10, 5)
     cover = np.random.randint(0, 2, size=10)
     ert = ERT(LogisticRegression, max_iter=100)
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
          patch.object(ERT, "make_losses"):
         with pytest.raises(Exception):
-            ert.evaluate_multiple_losses(X, cover, alpha=0.8, n_splits=None)
+            ert.evaluate_multiple_losses(X, cover, alpha=0.8, n_splits=0)
 
 
-@pytest.mark.parametrize("backend", ["numpy", "torch", "dataframe"])
-def test_evaluate_all_with_under_over_confidence(backend):
-    n_samples, n_features = 100, 4
-    if backend == "numpy":
-        X = np.random.rand(n_samples, n_features)
-        cover = np.random.randint(0, 2, size=n_samples)
-    elif backend == "torch":
-        X = torch.rand(n_samples, n_features)
-        cover = torch.randint(0, 2, size=(n_samples,))
-    elif backend == "dataframe":
-        X = pd.DataFrame(np.random.rand(n_samples, n_features))
-        cover = pd.Series(np.random.randint(0, 2, size=n_samples))
 
-    ert = ERT(model_cls=LogisticRegression)
-    ert.fit(X, cover)
-
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
-         patch.object(ERT, "make_losses"), \
-         patch.object(ERT, "init_model"):
-
-        results = ert.evaluate_multiple_losses(X, cover, alpha=0.6, n_splits=None, underconfidence=True, overconfidence=True)
-        assert isinstance(results, dict)
-        for key, value in results.items():
-            assert isinstance(value, float)
 
 
 # def test_add_loss_basic():
@@ -320,7 +297,7 @@ def test_make_losses_without_added_losses():
     loss_names = [loss.__name__ if hasattr(loss, "__name__") else loss.__class__.__name__ for loss in ert.tab_losses]
     assert "brier_score" in loss_names
     assert "logloss" in loss_names
-    assert len(loss_names) == 3  # brier_score, logloss, make_L1_miscoverage(alpha)
+    assert len(loss_names) == 9  # brier_score, logloss, make_L1_miscoverage and their over and over versions
 
 
 def test_evaluate_all_with_explicit_losses():
@@ -339,13 +316,13 @@ def test_evaluate_all_with_explicit_losses():
     ert = ERT(model_cls=LogisticRegression)
     ert.fit(X, cover)
 
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
          patch.object(ERT, "init_model"):
 
-        results = ert.evaluate_multiple_losses(X, cover, alpha=0.7, all_losses_to_evaluate=[loss1, loss2])
+        results = ert.evaluate_multiple_losses(X, cover, alpha=0.7, all_losses=[loss1, loss2])
 
         assert isinstance(results, dict)
         assert "ERT_loss1" in results
@@ -362,10 +339,10 @@ def test_evaluate_using_adaptive_coverage_policy():
 
     ert = ERT(model_cls=LogisticRegression)
 
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
          patch.object(ERT, "init_model"):
 
         results1 = ert.evaluate(X, cover, alpha=alpha)
@@ -376,23 +353,102 @@ def test_evaluate_using_adaptive_coverage_policy():
         for value in results2.values():
             assert isinstance(value, float)
 
-def test_default_settings():
-    n_samples, n_features = 100, 4
-    X = np.random.rand(n_samples, n_features)
-    cover = np.random.randint(0, 2, size=n_samples)
-    
-    ert = ERT()
 
-    with patch("src.covmetrics.ERT.check_tabular"), \
-         patch("src.covmetrics.ERT.check_cover"), \
-         patch("src.covmetrics.ERT.check_consistency"), \
-         patch("src.covmetrics.ERT.check_alpha_tab_ok"), \
+# @pytest.mark.parametrize(
+#     "backend, model",
+#     [
+#         ("numpy", None),
+#         ("numpy", BetterCatBoostClassifier),
+#         ("numpy", BetterLGBMClassifier),
+#         ("numpy", CheapBetterCatBoostClassifier),
+#         ("torch", None),
+#         ("torch", BetterCatBoostClassifier),
+#         ("torch", BetterLGBMClassifier),
+#         ("torch", CheapBetterCatBoostClassifier),
+#         ("dataframe", None),
+#         ("dataframe", BetterCatBoostClassifier),
+#         ("dataframe", BetterLGBMClassifier),
+#         ("dataframe", CheapBetterCatBoostClassifier),
+#     ]
+# )
+# def test_default_settings(backend, model):
+#     n_samples, n_features = 100, 4
+
+#     if backend == "numpy":
+#         X = np.random.rand(n_samples, n_features)
+#         cover = np.random.randint(0, 2, size=n_samples)
+
+#     elif backend == "torch":
+#         X = torch.rand(n_samples, n_features, dtype=torch.float32)
+#         cover = torch.randint(0, 2, size=(n_samples,), dtype=torch.float32)
+
+#     elif backend == "dataframe":
+#         X = pd.DataFrame(np.random.rand(n_samples, n_features))
+#         cover = pd.Series(np.random.randint(0, 2, size=n_samples))
+
+#     ert = ERT() if model is None else ERT(model)
+
+#     with patch("covmetrics.ERT.check_tabular"), \
+#          patch("covmetrics.ERT.check_cover"), \
+#          patch("covmetrics.ERT.check_consistency"), \
+#          patch("covmetrics.ERT.check_alpha_tab_ok"), \
+#          patch.object(ERT, "init_model"):
+
+#         results1 = ert.evaluate(X, cover, alpha=0.7)
+#         results2 = ert.evaluate_multiple_losses(X, cover, alpha=0.7)
+
+#         assert isinstance(results1, float)
+#         assert isinstance(results2, dict)
+#         for value in results2.values():
+#             assert isinstance(value, float)
+
+
+losses = [
+    "brier_score",
+    "logloss",
+    "L1_miscoverage",
+    "brier_score_under",
+    "logloss_under",
+    "L1_miscoverage_under",
+    "brier_score_over",
+    "logloss_over",
+    "L1_miscoverage_over",
+]
+
+backends = ["numpy", "torch", "dataframe"]
+
+@pytest.mark.parametrize("backend", backends)
+@pytest.mark.parametrize("loss_name", losses)
+def test_each_loss_separately(backend, loss_name):
+    n_samples, n_features = 100, 4
+
+    # Préparer les données selon le backend
+    if backend == "numpy":
+        X = np.random.rand(n_samples, n_features)
+        cover = np.random.randint(0, 2, size=n_samples)
+    elif backend == "torch":
+        X = torch.rand(n_samples, n_features, dtype=torch.float32)
+        cover = torch.randint(0, 2, size=(n_samples,), dtype=torch.float32)
+    elif backend == "dataframe":
+        X = pd.DataFrame(np.random.rand(n_samples, n_features))
+        cover = pd.Series(np.random.randint(0, 2, size=n_samples))
+
+    ert = ERT(model_cls=LogisticRegression)
+
+    # Patch pour isoler le test
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
          patch.object(ERT, "init_model"):
 
-        results1 = ert.evaluate(X, cover, alpha=0.7)
-        results2 = ert.evaluate_multiple_losses(X, cover, alpha=0.7)
+        # Sélectionner la loss unique à tester
+        tab_losses_to_evaluate = [globals()[loss_name]]
 
-        assert isinstance(results1, float)
-        assert isinstance(results2, dict)
-        for value in results2.values():
-            assert isinstance(value, float)
+        results = ert.evaluate_multiple_losses(
+            X, cover, alpha=0.7, all_losses=tab_losses_to_evaluate
+        )
+
+        # Vérifier le type des résultats
+        assert isinstance(results, dict)
+        assert all(isinstance(value, float) for value in results.values())

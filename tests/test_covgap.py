@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import pytest
 
-from src.covmetrics.group_metrics import CovGap
+from covmetrics.group_metrics import CovGap
 
 
 def to_backend(array, backend, dtype="float"):

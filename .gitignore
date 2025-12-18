@@ -3,10 +3,18 @@ deploy.sh
 .DS_Store
 **/.DS_Store
 
+.*
+!.gitignore
+!.gitmodules
+!.editorconfig
+
+
 Thumbs.db
 ehthumbs.db
 desktop.ini
 data/
+
+catboost_info/
 
 *.swp
 *.swo
@@ -33,6 +41,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *.pyo
 .venv/
