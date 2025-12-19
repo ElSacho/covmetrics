@@ -1,15 +1,6 @@
 # Covmetrics: conditional coverage metrics
 
-This package (PyTorch-based) currently contains different conditional coverage metrics:
-- ERT (Excess risk of the target coverage).
-- WSC (Worst slab coverage).
-- FSC (Feature-stratified coverage).
-- CovGap.
-- WeightedCovGap.
-- SSC (Size-stratified coverage).
-- EOC (Equal opportunity of coverage).
-- Pearson's Correlation.
-- HSIC's Correlation.
+This package (PyTorch-based) currently contains different conditional coverage metrics, including our metric ERT (Excess risk of the target coverage).
 
 It accompanies our papers
 [Conditional Coverage Diagnostics for Conformal Prediction](https://arxiv.org/abs/2512.11779).
@@ -17,11 +8,10 @@ Please cite us if you use this repository for research purposes.
 
 ## Installation
 
-Work in progress: for now you can use the ERT file to use our metrics, it will be pip installable soon! 
-<!-- Covmetrics is available via
+Covmetrics is available via
 ```bash
 pip install covmetrics
-``` -->
+```
 
 ## Using conditional coverage metrics
 
@@ -33,7 +23,7 @@ ERT_value = ERT().evaluate(x, cover, alpha)
 
 ```
 
-Where the object "x" is a feature vector of shape (n_samples, n_features) (numpy, torch or dataframe), and cover is a vector of shape (n_samples) with 0's or 1's
+Where the object "x" is a feature vector of shape (n_samples, n_features) (numpy, torch or dataframe), and cover is a vector of shape (n_samples,) with 0's or 1's
 
 The default classifier used to classify the outputs is a LightGBM classifier.
 You can change this by replacing the model class of the classifier:
@@ -125,6 +115,17 @@ ERT_value = ERT_estimator.evaluate(x_test, cover_test, alpha=tab_alpha)
 
 
 ## Other metrics
+
+Other metrics implemented metrics are: 
+
+- WSC (Worst slab coverage).
+- FSC (Feature-stratified coverage).
+- CovGap.
+- WeightedCovGap.
+- SSC (Size-stratified coverage).
+- EOC (Equal opportunity of coverage).
+- Pearson's Correlation.
+- HSIC's Correlation.
 
 The WSC metric is a vectorized version of the original github : Original code from https://github.com/Shai128/oqr.
 

@@ -354,53 +354,53 @@ def test_evaluate_using_adaptive_coverage_policy():
             assert isinstance(value, float)
 
 
-# @pytest.mark.parametrize(
-#     "backend, model",
-#     [
-#         ("numpy", None),
-#         ("numpy", BetterCatBoostClassifier),
-#         ("numpy", BetterLGBMClassifier),
-#         ("numpy", CheapBetterCatBoostClassifier),
-#         ("torch", None),
-#         ("torch", BetterCatBoostClassifier),
-#         ("torch", BetterLGBMClassifier),
-#         ("torch", CheapBetterCatBoostClassifier),
-#         ("dataframe", None),
-#         ("dataframe", BetterCatBoostClassifier),
-#         ("dataframe", BetterLGBMClassifier),
-#         ("dataframe", CheapBetterCatBoostClassifier),
-#     ]
-# )
-# def test_default_settings(backend, model):
-#     n_samples, n_features = 100, 4
+@pytest.mark.parametrize(
+    "backend, model",
+    [
+        ("numpy", None),
+        ("numpy", BetterCatBoostClassifier),
+        ("numpy", BetterLGBMClassifier),
+        ("numpy", CheapBetterCatBoostClassifier),
+        ("torch", None),
+        ("torch", BetterCatBoostClassifier),
+        ("torch", BetterLGBMClassifier),
+        ("torch", CheapBetterCatBoostClassifier),
+        ("dataframe", None),
+        ("dataframe", BetterCatBoostClassifier),
+        ("dataframe", BetterLGBMClassifier),
+        ("dataframe", CheapBetterCatBoostClassifier),
+    ]
+)
+def test_default_settings(backend, model):
+    n_samples, n_features = 100, 4
 
-#     if backend == "numpy":
-#         X = np.random.rand(n_samples, n_features)
-#         cover = np.random.randint(0, 2, size=n_samples)
+    if backend == "numpy":
+        X = np.random.rand(n_samples, n_features)
+        cover = np.random.randint(0, 2, size=n_samples)
 
-#     elif backend == "torch":
-#         X = torch.rand(n_samples, n_features, dtype=torch.float32)
-#         cover = torch.randint(0, 2, size=(n_samples,), dtype=torch.float32)
+    elif backend == "torch":
+        X = torch.rand(n_samples, n_features, dtype=torch.float32)
+        cover = torch.randint(0, 2, size=(n_samples,), dtype=torch.float32)
 
-#     elif backend == "dataframe":
-#         X = pd.DataFrame(np.random.rand(n_samples, n_features))
-#         cover = pd.Series(np.random.randint(0, 2, size=n_samples))
+    elif backend == "dataframe":
+        X = pd.DataFrame(np.random.rand(n_samples, n_features))
+        cover = pd.Series(np.random.randint(0, 2, size=n_samples))
 
-#     ert = ERT() if model is None else ERT(model)
+    ert = ERT() if model is None else ERT(model)
 
-#     with patch("covmetrics.ERT.check_tabular"), \
-#          patch("covmetrics.ERT.check_cover"), \
-#          patch("covmetrics.ERT.check_consistency"), \
-#          patch("covmetrics.ERT.check_alpha_tab_ok"), \
-#          patch.object(ERT, "init_model"):
+    with patch("covmetrics.ERT.check_tabular"), \
+         patch("covmetrics.ERT.check_cover"), \
+         patch("covmetrics.ERT.check_consistency"), \
+         patch("covmetrics.ERT.check_alpha_tab_ok"), \
+         patch.object(ERT, "init_model"):
 
-#         results1 = ert.evaluate(X, cover, alpha=0.7)
-#         results2 = ert.evaluate_multiple_losses(X, cover, alpha=0.7)
+        results1 = ert.evaluate(X, cover, alpha=0.7)
+        results2 = ert.evaluate_multiple_losses(X, cover, alpha=0.7)
 
-#         assert isinstance(results1, float)
-#         assert isinstance(results2, dict)
-#         for value in results2.values():
-#             assert isinstance(value, float)
+        assert isinstance(results1, float)
+        assert isinstance(results2, dict)
+        for value in results2.values():
+            assert isinstance(value, float)
 
 
 losses = [
