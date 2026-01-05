@@ -55,7 +55,7 @@ def L1_miscoverage(pred_proba, cover, alpha):
     if isinstance(alpha, pd.Series) or isinstance(alpha, pd.DataFrame): alpha = np.asarray(alpha)
     threshold = 1 - alpha
 
-    out = cover * 0
+    out = cover * 0.0
     
     pos = pred_proba < threshold
     neg = pred_proba > threshold
