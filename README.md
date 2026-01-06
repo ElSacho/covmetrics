@@ -101,9 +101,9 @@ You can evaluate conditional coverage rules by providing `alpha` as an array tha
 
 Each value of `alpha` must be between 0 and 1 and represents the **conditional miscoverage level**, meaning:
 
-\[
+$$
 \mathbb{P}(Y \in C(X) \mid X) = 1 - \alpha(X)
-\]
+$$
 
 Example usage:
 
